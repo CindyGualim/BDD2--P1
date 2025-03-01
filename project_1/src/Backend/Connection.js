@@ -72,7 +72,7 @@ app.post("/login", async (req, res) => {
 
     // Obtener valores y asegurar que `nombre` nunca sea null
     let storedPassword = result.records[0].get("password");
-    let nombre = result.records[0].get("nombre") || "Sin nombre";  // Manejar caso null
+    let nombre = result.records[0].get("nombre") || "Sin nombre";
     let emailUser = result.records[0].get("email");
 
     if (password !== storedPassword) {
