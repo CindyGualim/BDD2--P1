@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("dotenv").config({ path: __dirname + "/.env" });
 const express = require("express");
 const neo4j = require("neo4j-driver");
 const cors = require("cors");
@@ -17,7 +17,7 @@ const driver = neo4j.driver(
 app.get("/users", async (req, res) => {
   const session = driver.session();
   try {
-    const result = await session.run("MATCH (u:User) RETURN u");
+    const result = await session.run("MATCH (u:Usuario) RETURN u");
     const users = result.records.map(record => record.get("u").properties);
     res.json(users);
   } catch (error) {
@@ -38,14 +38,14 @@ app.post("/register", async (req, res) => {
     }
 
     // Verificar si el usuario ya existe
-    const existingUser = await session.run("MATCH (u:User {email: $email}) RETURN u", { email });
+    const existingUser = await session.run("MATCH (u:Usuario {email: $email}) RETURN u", { email });
 
     if (existingUser.records.length > 0) {
       return res.status(400).json({ message: "El usuario ya está registrado" });
     }
 
-    // Si no existe, crear el usuario
-    await session.run("CREATE (u:User {email: $email, password: $password}) RETURN u", { email, password });
+    // Crear el usuario
+    await session.run("CREATE (u:Usuario {email: $email, password: $password}) RETURN u", { email, password });
 
     res.status(201).json({ message: "Usuario registrado con éxito" });
   } catch (error) {
@@ -55,19 +55,32 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// POST: Login de usuario
+//   POST: Login de usuario (Corrección aplicada)
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   const session = driver.session();
 
   try {
-    const result = await session.run("MATCH (u:User {email: $email, password: $password}) RETURN u", { email, password });
+    const result = await session.run(
+      "MATCH (u:Usuario {email: $email}) RETURN u.password AS password, u.nombre AS nombre, u.email AS email",
+      { email }
+    );
 
     if (result.records.length === 0) {
-      return res.status(401).json({ message: "Credenciales inválidas" });
+      return res.status(401).json({ message: "Usuario no encontrado" });
     }
 
-    res.json({ message: "Inicio de sesión exitoso", user: result.records[0].get("u").properties });
+    // Obtener valores y asegurar que `nombre` nunca sea null
+    let storedPassword = result.records[0].get("password");
+    let nombre = result.records[0].get("nombre") || "Sin nombre";  // Manejar caso null
+    let emailUser = result.records[0].get("email");
+
+    if (password !== storedPassword) {
+      return res.status(401).json({ message: "Contraseña incorrecta" });
+    }
+
+    res.json({ message: "Inicio de sesión exitoso", nombre, email: emailUser });
+
   } catch (error) {
     res.status(500).json({ error: error.message });
   } finally {
@@ -75,11 +88,12 @@ app.post("/login", async (req, res) => {
   }
 });
 
+
 //   GET: Obtener todos los géneros de películas
 app.get("/genres", async (req, res) => {
   const session = driver.session();
   try {
-    const result = await session.run("MATCH (g:Genre) RETURN g.name AS name");
+    const result = await session.run("MATCH (g:Genero) RETURN g.nombre AS name");
     const genres = result.records.map(record => record.get("name"));
     res.json(genres);
   } catch (error) {
@@ -93,7 +107,7 @@ app.get("/genres", async (req, res) => {
 app.get("/directors", async (req, res) => {
   const session = driver.session();
   try {
-    const result = await session.run("MATCH (d:Director) RETURN d.name AS name");
+    const result = await session.run("MATCH (d:Director) RETURN d.nombre AS name");
     const directors = result.records.map(record => record.get("name"));
     res.json(directors);
   } catch (error) {
@@ -107,9 +121,26 @@ app.get("/directors", async (req, res) => {
 app.get("/actors", async (req, res) => {
   const session = driver.session();
   try {
-    const result = await session.run("MATCH (a:Actor) RETURN a.name AS name");
+    const result = await session.run("MATCH (a:Actor) RETURN a.nombre AS name");
     const actors = result.records.map(record => record.get("name"));
     res.json(actors);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+//   GET: Obtener todas las películas
+app.get("/movies", async (req, res) => {
+  const session = driver.session();
+  try {
+    const result = await session.run("MATCH (p:Pelicula) RETURN p.titulo AS title, p.popularidad AS popularity");
+    const movies = result.records.map(record => ({
+      title: record.get("title"),
+      popularity: record.get("popularity"),
+    }));
+    res.json(movies);
   } catch (error) {
     res.status(500).json({ error: error.message });
   } finally {
