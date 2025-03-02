@@ -23,9 +23,9 @@ function Register() {
       });
 
       if (response.status === 201) {
-        setMessage("Registro exitoso. Redirigiendo al login...");
+        setMessage("Escoje tus Generos favoritos...");
         setTimeout(() => {
-          navigate("/login");
+          navigate("/genre-selection");
         }, 2000);
       }
     } catch (error) {
@@ -58,7 +58,7 @@ function Register() {
         </div>
         <button type="submit">Registrarse</button>
       </form>
-      <button onClick={() => navigate("/login")}>Ir a Login</button>
+      <button onClick={() => navigate("/genre-selection")}>Ir a Login</button>
     </div>
   );
 }

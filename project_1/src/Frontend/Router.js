@@ -1,14 +1,17 @@
-import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Register from "./Register";
 import Login from "./Login";
+import Register from "./Register";
+import GenreSelection from "./Genre_Selection";
+import Dashboard from "./Dashboard";
 
 const AppRouter = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/genre-selection" element={<GenreSelection />} />
+        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </Router>
   );
