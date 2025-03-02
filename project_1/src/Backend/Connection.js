@@ -13,6 +13,8 @@ const driver = neo4j.driver(
   neo4j.auth.basic(process.env.NEO4J_USER, process.env.NEO4J_PASSWORD)
 );
 
+
+
 //   GET: Obtener todos los usuarios
 app.get("/users", async (req, res) => {
   const session = driver.session();
@@ -57,36 +59,37 @@ app.post("/register", async (req, res) => {
 
 //   POST: Login de usuario (Corrección aplicada)
 app.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  const session = driver.session();
-
-  try {
-    const result = await session.run(
-      "MATCH (u:Usuario {email: $email}) RETURN u.password AS password, u.nombre AS nombre, u.email AS email",
-      { email }
-    );
-
-    if (result.records.length === 0) {
-      return res.status(401).json({ message: "Usuario no encontrado" });
+    const { email, password } = req.body;
+    const session = driver.session();
+  
+    try {
+      const result = await session.run(
+        "MATCH (u:Usuario {email: $email}) RETURN u.password AS password, u.nombre AS nombre, u.email AS email",
+        { email }
+      );
+  
+      if (result.records.length === 0) {
+        return res.status(401).json({ message: "Usuario no encontrado" });
+      }
+  
+      // Obtener datos del usuario sin duplicar variables
+      let storedPassword = result.records[0].get("password");
+      let nombre = result.records[0].get("nombre") ? result.records[0].get("nombre") : "Sin nombre";
+      let emailUser = result.records[0].get("email");
+  
+      if (password !== storedPassword) {
+        return res.status(401).json({ message: "Contraseña incorrecta" });
+      }
+  
+      res.json({ message: "Inicio de sesión exitoso", nombre, email: emailUser });
+  
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    } finally {
+      await session.close();
     }
-
-    // Obtener valores y asegurar que `nombre` nunca sea null
-    let storedPassword = result.records[0].get("password");
-    let nombre = result.records[0].get("nombre") || "Sin nombre";
-    let emailUser = result.records[0].get("email");
-
-    if (password !== storedPassword) {
-      return res.status(401).json({ message: "Contraseña incorrecta" });
-    }
-
-    res.json({ message: "Inicio de sesión exitoso", nombre, email: emailUser });
-
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  } finally {
-    await session.close();
-  }
-});
+  });
+  
 
 
 //   GET: Obtener todos los géneros de películas
@@ -147,6 +150,11 @@ app.get("/movies", async (req, res) => {
     await session.close();
   }
 });
+
+app.get("/", (req, res) => {
+    res.send("Servidor funcionando correctamente 🚀");
+});
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));

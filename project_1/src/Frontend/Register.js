@@ -1,72 +1,66 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 function Register() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [errorMessage, setErrorMessage] = useState('');
-    const [successMessage, setSuccessMessage] = useState('');
-    const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const navigate = useNavigate();
 
-    const handleRegister = async (event) => {
-        event.preventDefault();
+  const handleRegister = async (event) => {
+    event.preventDefault();
 
-        // Validación de campos vacíos
-        if (!email || !password) {
-            setErrorMessage('Por favor, complete todos los campos');
-            return;
-        }
+    if (!email || !password) {
+      setMessage("Por favor, complete todos los campos.");
+      return;
+    }
 
-        try {
-            const response = await axios.post('http://localhost:5000/register', {
-                email,
-                password
-            });
+    try {
+      const response = await axios.post("http://localhost:5000/register", {
+        email,
+        password,
+      });
 
-            if (response.status === 201) {
-                setSuccessMessage('Registro exitoso, redirigiendo...');
-                setTimeout(() => {
-                    navigate('/login');
-                }, 2000);
-            }
-        } catch (error) {
-            if (error.response) {
-                setErrorMessage(error.response.data.message || 'Error al registrar usuario');
-            } else {
-                setErrorMessage('No se pudo conectar con el servidor');
-            }
-        }
-    };
+      if (response.status === 201) {
+        setMessage("Registro exitoso. Redirigiendo al login...");
+        setTimeout(() => {
+          navigate("/login");
+        }, 2000);
+      }
+    } catch (error) {
+      setMessage("Error al registrar usuario. Intente de nuevo.");
+    }
+  };
 
-    return (
-        <div className="register-container">
-            <h2>Registro</h2>
-            {errorMessage && <p className="error">{errorMessage}</p>}
-            {successMessage && <p className="success">{successMessage}</p>}
-            <form onSubmit={handleRegister}>
-                <div>
-                    <label>Email:</label>
-                    <input 
-                        type="email" 
-                        value={email} 
-                        onChange={(e) => setEmail(e.target.value)} 
-                        required 
-                    />
-                </div>
-                <div>
-                    <label>Contraseña:</label>
-                    <input 
-                        type="password" 
-                        value={password} 
-                        onChange={(e) => setPassword(e.target.value)} 
-                        required 
-                    />
-                </div>
-                <button type="submit">Registrarse</button>
-            </form>
+  return (
+    <div>
+      <h1>Registro</h1>
+      {message && <p>{message}</p>}
+      <form onSubmit={handleRegister}>
+        <div>
+          <label>Email:</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
         </div>
-    );
+        <div>
+          <label>Contraseña:</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        <button type="submit">Registrarse</button>
+      </form>
+      <button onClick={() => navigate("/login")}>Ir a Login</button>
+    </div>
+  );
 }
 
 export default Register;
