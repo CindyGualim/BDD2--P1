@@ -192,7 +192,7 @@ app.get("/top-movies", async (req, res) => {
 
   try {
     const query = `
-      MATCH (p:Pelicula)
+      MATCH (p:Película)
       RETURN p.titulo AS title, p.popularidad AS popularidad
       ORDER BY p.popularidad DESC
       LIMIT 10;
@@ -202,19 +202,18 @@ app.get("/top-movies", async (req, res) => {
 
     const topMovies = result.records.map(record => ({
       title: record.get("title"),
-      popularidad: record.get("popularidad").toNumber()
+      popularidad: record.get("popularidad").toNumber(),
     }));
 
+    console.log("🔹 Datos enviados al frontend:", topMovies); // <-- Agrega este log para revisar
     res.json(topMovies);
   } catch (error) {
-    console.error("Error en la consulta de top de películas:", error);
+    console.error("❌ Error en la consulta de top de películas:", error);
     res.status(500).json({ error: error.message });
   } finally {
     await session.close();
   }
 });
-
-
 
 
 // GET: Obtener recomendaciones de películas basadas en los géneros preferidos del usuario
@@ -224,29 +223,27 @@ app.get("/recommendations/:email", async (req, res) => {
 
   try {
     const query = `
-      MATCH (u:Usuario {email: $email})-[:GUSTA]->(g:Genero)<-[:PERTENECE_A]-(p:Pelicula)
-  RETURN p.titulo AS title, COUNT(g) AS relevancia
-  ORDER BY relevancia DESC
-  LIMIT 10;
-
+      MATCH (u:Usuario {email: $email})-[:GUSTA]->(g:Genero)<-[:PERTENECE_A]-(p:Película)
+      RETURN p.titulo AS title, COUNT(g) AS relevancia
+      ORDER BY relevancia DESC
+      LIMIT 10;
     `;
 
     const result = await session.run(query, { email });
 
     const recommendations = result.records.map(record => ({
-      title: record.get("Pelicula"),  // Se corrigió el nombre del campo
-      relevancia: record.get("Relevancia").low, // Convertir número de Neo4j si es necesario
+      title: record.get("title"),
+      relevancia: record.get("relevancia").toNumber(),
     }));
 
     res.json(recommendations);
   } catch (error) {
-    console.error("Error en la consulta de recomendaciones:", error);
+    console.error("❌ Error en la consulta de recomendaciones:", error);
     res.status(500).json({ error: error.message });
   } finally {
     await session.close();
   }
 });
-
 
 
 

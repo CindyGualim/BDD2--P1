@@ -29,11 +29,12 @@ function Home() {
 
     // Obtener el top global de películas más populares
     axios.get("http://localhost:5000/top-movies")
-      .then(response => {
-        setTopMovies(response.data);
-      })
-      .catch(error => {
-        console.error("Error al obtener top de películas:", error);
+    .then(response => {
+      console.log("🏆 Top películas recibidas:", response.data);  // <--- LOG PARA DEPURAR
+      setTopMovies(response.data);
+    })
+    .catch(error => {
+      console.error("❌ Error al obtener top de películas:", error);
       })
       .finally(() => setLoading(false));
 
@@ -60,18 +61,19 @@ function Home() {
             <p>⚠️ No hay recomendaciones disponibles. ¿Seleccionaste géneros?</p>
           )}
 
-          <h2>🏆 Top Global de Películas</h2>
-          {topMovies.length > 0 ? (
-            <ul>
-              {topMovies.map((movie, index) => (
-                <li key={index} style={{ marginBottom: "10px" }}>
-                  🌟 {movie.title} - 📊 Popularidad: {movie.popularidad}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>⚠️ No hay películas populares disponibles.</p>
-          )}
+        <h2>🏆 Top Global de Películas</h2>
+        {topMovies.length > 0 ? (
+          <ul>
+            {topMovies.map((movie, index) => (
+              <li key={index} style={{ marginBottom: "10px" }}>
+                🎥 {movie.title} - 📊 Popularidad: {movie.popularidad}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>⚠️ No hay películas populares disponibles.</p>
+        )}
+
         </>
       )}
 
