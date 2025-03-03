@@ -153,30 +153,72 @@ app.get("/movies", async (req, res) => {
 //   POST: Guardar preferencias de usuario
 app.post("/save-preferences", async (req, res) => {
   const { email, genres } = req.body;
+  console.log("📩 Datos recibidos en el backend:", email, genres); // Agregado para verificar
+
   const session = driver.session();
 
   try {
     if (!email || !genres || genres.length === 0) {
-      return res.status(400).json({ message: "Datos incompletos" });
+      return res.status(400).json({ message: "Faltan datos o géneros seleccionados." });
     }
 
-    // Asociar los géneros al usuario en Neo4j
+    // Eliminar relaciones previas
     await session.run(
-      "MATCH (u:Usuario {email: $email}) " +
-      "WITH u UNWIND $genres AS genre " +
-      "MATCH (g:Genero {nombre: genre}) " +
-      "MERGE (u)-[:PREFIERE]->(g)",
-      { email, genres }
+      "MATCH (u:Usuario {email: $email})-[r:GUSTA]->(g:Genero) DELETE r",
+      { email }
     );
 
-    res.json({ message: "Preferencias guardadas correctamente" });
+    // Crear nuevas relaciones GUSTA
+    for (let genre of genres) {
+      console.log(`🔗 Creando relación entre ${email} y ${genre}`); // Agregado para verificar
+      await session.run(
+        "MATCH (u:Usuario {email: $email}), (g:Genero {nombre: $genre}) CREATE (u)-[:GUSTA]->(g)",
+        { email, genre }
+      );
+    }
 
+    res.status(200).json({ message: "Preferencias guardadas con éxito" });
   } catch (error) {
+    console.error("❌ Error en /save-preferences:", error);
     res.status(500).json({ error: error.message });
   } finally {
     await session.close();
   }
 });
+
+
+
+// GET: Obtener recomendaciones de películas basadas en los géneros preferidos del usuario
+app.get("/recommendations/:email", async (req, res) => {
+  const { email } = req.params;
+  const session = driver.session();
+
+  try {
+    const query = `
+      MATCH (u:Usuario {email: $email})-[:GUSTA]->(g:Genero)<-[:PERTENECE_A]-(p:Pelicula)
+  RETURN p.titulo AS title, COUNT(g) AS relevancia
+  ORDER BY relevancia DESC
+  LIMIT 10;
+
+    `;
+
+    const result = await session.run(query, { email });
+
+    const recommendations = result.records.map(record => ({
+      title: record.get("Pelicula"),  // Se corrigió el nombre del campo
+      relevancia: record.get("Relevancia").low, // Convertir número de Neo4j si es necesario
+    }));
+
+    res.json(recommendations);
+  } catch (error) {
+    console.error("Error en la consulta de recomendaciones:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+
 
 
 app.get("/", (req, res) => {

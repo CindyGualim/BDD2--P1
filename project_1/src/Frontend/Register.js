@@ -23,7 +23,10 @@ function Register() {
       });
 
       if (response.status === 201) {
-        setMessage("Escoje tus Generos favoritos...");
+        localStorage.setItem("userEmail", email); // Guardar email en localStorage
+        console.log("✅ Email guardado en localStorage:", email);
+
+        setMessage("Escoje tus Géneros favoritos...");
         setTimeout(() => {
           navigate("/genre-selection");
         }, 2000);
@@ -58,7 +61,7 @@ function Register() {
         </div>
         <button type="submit">Registrarse</button>
       </form>
-      <button onClick={() => navigate("/genre-selection")}>Ir a Login</button>
+      <button onClick={() => navigate("/login")}>Ir a Login</button>
     </div>
   );
 }
