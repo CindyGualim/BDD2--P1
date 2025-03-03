@@ -1,20 +1,21 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Login from "./Login";
-import Register from "./Register";
-import GenreSelection from "./Genre_Selection";
-import Dashboard from "./Dashboard";
+import Register from "./Frontend/Register";
+import Login from "./Frontend/Login";
+import GenreSelection from "./Frontend/Genre_Selection";
+import Home from "./Frontend/Home";
 
-const AppRouter = () => {
+
+function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route path="/" element={<Home />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/genre-selection" element={<GenreSelection />} />
-        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </Router>
   );
-};
+}
 
-export default AppRouter;
+export default App;

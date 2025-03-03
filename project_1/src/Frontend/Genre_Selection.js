@@ -45,7 +45,7 @@ function GenreSelection() {
     })
     .then(() => {
       alert("Preferencias guardadas con éxito!");
-      navigate("/recommendations");
+      navigate("/"); // 🔥 Ahora redirige a Home.js en lugar de /recommendations
     })
     .catch(error => {
       console.error("Error al guardar preferencias:", error);

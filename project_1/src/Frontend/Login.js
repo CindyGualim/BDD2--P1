@@ -5,30 +5,29 @@ import "./css/log-Reg.css";
 import loginBg from "./css/login-pp.png";
 
 function Login() {
-  // 🔥 Agregamos estados que faltaban
   const [email, setEmail] = useState(""); 
   const [password, setPassword] = useState(""); 
   const [errorMessage, setErrorMessage] = useState(""); 
-
-  const navigate = useNavigate(); // 🔥 useNavigate() correctamente definido
+  const navigate = useNavigate(); 
 
   const handleLogin = async (event) => {
     event.preventDefault();
-  
+
     if (!email || !password) {
       setErrorMessage("Por favor, ingrese sus credenciales.");
       return;
     }
-  
+
     try {
       const response = await axios.post("http://localhost:5000/login", {
         email,
         password,
       });
-  
+
       if (response.status === 200) {
         alert("Inicio de sesión exitoso");
-        navigate("/dashboard"); // Redirige a otra página después de loguearse
+        localStorage.setItem("userEmail", email); // Guardar email en localStorage
+        navigate("/"); // 🔥 Redirigir directamente a Home.js
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
@@ -45,7 +44,7 @@ function Login() {
       <form className="login__form" onSubmit={handleLogin}>
         <h1 className="login__title">Iniciar Sesión</h1>
         {errorMessage && <p className="login__error">{errorMessage}</p>}
-        
+
         <div className="login__content">
           <div className="login__box">
             <i className="bx bx-user login__icon"></i>
@@ -53,7 +52,6 @@ function Login() {
               <input
                 type="email"
                 className="login__input"
-                placeholder=""
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -68,8 +66,6 @@ function Login() {
               <input
                 type="password"
                 className="login__input"
-                id="login-pass"
-                placeholder=""
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -79,9 +75,8 @@ function Login() {
           </div>
         </div>
         <button type="submit" className="login__button">Ingresar</button>
-        <button  type="submit"onClick={() => navigate("/register")} className="login__register">Ir a Registro</button>
+        <button onClick={() => navigate("/register")} className="login__register">Ir a Registro</button>
       </form>
-      
     </div>
   );
 };

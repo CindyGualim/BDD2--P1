@@ -186,6 +186,35 @@ app.post("/save-preferences", async (req, res) => {
   }
 });
 
+// GET: Obtener el top global de películas más populares
+app.get("/top-movies", async (req, res) => {
+  const session = driver.session();
+
+  try {
+    const query = `
+      MATCH (p:Pelicula)
+      RETURN p.titulo AS title, p.popularidad AS popularidad
+      ORDER BY p.popularidad DESC
+      LIMIT 10;
+    `;
+
+    const result = await session.run(query);
+
+    const topMovies = result.records.map(record => ({
+      title: record.get("title"),
+      popularidad: record.get("popularidad").toNumber()
+    }));
+
+    res.json(topMovies);
+  } catch (error) {
+    console.error("Error en la consulta de top de películas:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+
 
 
 // GET: Obtener recomendaciones de películas basadas en los géneros preferidos del usuario
