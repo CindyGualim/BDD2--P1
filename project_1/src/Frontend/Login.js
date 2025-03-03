@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import "./css/log-Reg.css";
+import loginBg from "./css/login-pp.png";
 
 function Login() {
   // 🔥 Agregamos estados que faltaban
@@ -38,33 +40,50 @@ function Login() {
   };
 
   return (
-    <div>
-      <h1>Iniciar Sesión</h1>
-      {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
-      <form onSubmit={handleLogin}>
-        <div>
-          <label>Email:</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+    <div className="login">
+      <img src={loginBg} alt="login background" className="login__img" />
+      <form className="login__form" onSubmit={handleLogin}>
+        <h1 className="login__title">Iniciar Sesión</h1>
+        {errorMessage && <p className="login__error">{errorMessage}</p>}
+        
+        <div className="login__content">
+          <div className="login__box">
+            <i className="bx bx-user login__icon"></i>
+            <div className="login__box-input">
+              <input
+                type="email"
+                className="login__input"
+                placeholder=""
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <label className="login__label">Email</label>
+            </div>
+          </div>
+          
+          <div className="login__box">
+            <i className="ri-lock-2-line login__icon"></i>
+            <div className="login__box-input">
+              <input
+                type="password"
+                className="login__input"
+                id="login-pass"
+                placeholder=""
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <label className="login__label">Contraseña</label>
+            </div>
+          </div>
         </div>
-        <div>
-          <label>Contraseña:</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        <button type="submit">Ingresar</button>
+        <button type="submit" className="login__button">Ingresar</button>
+        <button  type="submit"onClick={() => navigate("/register")} className="login__register">Ir a Registro</button>
       </form>
-      <button onClick={() => navigate("/register")}>Ir a Registro</button>
+      
     </div>
   );
-}
+};
 
 export default Login;
