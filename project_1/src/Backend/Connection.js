@@ -150,6 +150,34 @@ app.get("/movies", async (req, res) => {
     await session.close();
   }
 });
+//   POST: Guardar preferencias de usuario
+app.post("/save-preferences", async (req, res) => {
+  const { email, genres } = req.body;
+  const session = driver.session();
+
+  try {
+    if (!email || !genres || genres.length === 0) {
+      return res.status(400).json({ message: "Datos incompletos" });
+    }
+
+    // Asociar los géneros al usuario en Neo4j
+    await session.run(
+      "MATCH (u:Usuario {email: $email}) " +
+      "WITH u UNWIND $genres AS genre " +
+      "MATCH (g:Genero {nombre: genre}) " +
+      "MERGE (u)-[:PREFIERE]->(g)",
+      { email, genres }
+    );
+
+    res.json({ message: "Preferencias guardadas correctamente" });
+
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
 
 app.get("/", (req, res) => {
     res.send("Servidor funcionando correctamente 🚀");
