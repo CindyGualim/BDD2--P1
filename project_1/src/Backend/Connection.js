@@ -31,31 +31,39 @@ app.get("/users", async (req, res) => {
 
 //   POST: Registro de usuario
 app.post("/register", async (req, res) => {
-  const { email, password } = req.body;
+  const { nombre, edad, email, password } = req.body;
   const session = driver.session();
 
   try {
-    if (!email || !password) {
+    if (!nombre || !edad || !email || !password) {
       return res.status(400).json({ message: "Todos los campos son obligatorios" });
     }
 
     // Verificar si el usuario ya existe
-    const existingUser = await session.run("MATCH (u:Usuario {email: $email}) RETURN u", { email });
+    const existingUser = await session.run(
+      "MATCH (u:Usuario {email: $email}) RETURN u",
+      { email }
+    );
 
     if (existingUser.records.length > 0) {
       return res.status(400).json({ message: "El usuario ya está registrado" });
     }
 
-    // Crear el usuario
-    await session.run("CREATE (u:Usuario {email: $email, password: $password}) RETURN u", { email, password });
+    // Crear el usuario en la base de datos
+    await session.run(
+      "CREATE (u:Usuario {nombre: $nombre, edad: $edad, email: $email, password: $password}) RETURN u",
+      { nombre, edad: parseInt(edad), email, password }
+    );
 
     res.status(201).json({ message: "Usuario registrado con éxito" });
   } catch (error) {
+    console.error("❌ Error en el registro:", error);
     res.status(500).json({ error: error.message });
   } finally {
     await session.close();
   }
 });
+
 
 //   POST: Login de usuario (Corrección aplicada)
 app.post("/login", async (req, res) => {
@@ -255,6 +263,7 @@ app.get("/recommendations/:email", async (req, res) => {
 });
 
 // GET: Obtener detalles de una película por su título
+// GET: Obtener detalles de una película por su título
 app.get("/movie/:titulo", async (req, res) => {
   let { titulo } = req.params;
   console.log(`📩 Buscando información de la película: '${titulo}'`);
@@ -265,16 +274,22 @@ app.get("/movie/:titulo", async (req, res) => {
   const session = driver.session();
   try {
     const query = `
-      MATCH (p:Película) 
+      MATCH (p:Película)
       WHERE p.titulo = $normalizedTitulo
       OPTIONAL MATCH (p)-[:PERTENECE_A]->(g:Genero)
       OPTIONAL MATCH (p)-[:TRABAJA_CON]->(d:Director)
+      OPTIONAL MATCH (p)-[:TIENE_ACTOR]->(a:Actor)
+      OPTIONAL MATCH (u:Usuario)-[r:CALIFICA]->(p)
       RETURN p.titulo AS titulo, 
              p.anio AS anio, 
              p.calificacion AS calificacion, 
              p.popularidad AS popularidad, 
+             p.sinopsis AS sinopsis,
              COLLECT(g.nombre) AS generos, 
-             d.nombre AS director
+             d.nombre AS director,
+             COLLECT(a.nombre) AS actores,
+             r.puntuacion AS usuario_calificacion, 
+             p.estadoParaUsuario AS estado
     `;
 
     console.log(`🟡 Ejecutando consulta con título: '${normalizedTitulo}'`);
@@ -292,11 +307,15 @@ app.get("/movie/:titulo", async (req, res) => {
 
     res.json({
       titulo: movie.get("titulo"),
-      anio: movie.get("anio") ? movie.get("anio").low : "Desconocido",  // ✅ Convertimos anio a número normal
+      anio: movie.get("anio") ? movie.get("anio").low : "Desconocido",
       calificacion: movie.get("calificacion") || "Sin calificación",
       popularidad: movie.get("popularidad") || 0,
       generos: movie.get("generos"),
       director: movie.get("director") || "Desconocido",
+      actores: movie.get("actores") || [],
+      sinopsis: movie.get("sinopsis") || "Sinopsis no disponible",
+      usuario_calificacion: movie.get("usuario_calificacion"),
+      estado: movie.get("estado") || "No visto"
     });
 
   } catch (error) {
@@ -306,6 +325,50 @@ app.get("/movie/:titulo", async (req, res) => {
     await session.close();
   }
 });
+
+
+// PUT: Actualizar la calificación y el estado de visualización de la película
+app.put("/movie/:titulo", async (req, res) => {
+  const { titulo } = req.params;
+  const { visto, calificacion, usuarioNombre } = req.body; // Recibimos el estado de si se vio y la calificación
+  console.log(`📩 Actualizando película: '${titulo}'`);
+
+  const session = driver.session();
+  try {
+    const query = `
+      MATCH (u:Usuario)-[r:CALIFICA]->(p:Película)
+      WHERE p.titulo = $titulo AND u.nombre = $usuarioNombre
+      SET p.estadoParaUsuario = CASE WHEN $visto = true THEN 'Visto' ELSE p.estadoParaUsuario END,
+          r.puntuacion = $calificacion
+      RETURN p.titulo AS titulo, p.estadoParaUsuario AS estado, r.puntuacion AS calificacion
+    `;
+
+    console.log(`🟡 Ejecutando actualización para: '${titulo}'`);
+
+    const result = await session.run(query, { titulo, visto, calificacion, usuarioNombre });
+
+    if (result.records.length === 0) {
+      console.error("❌ No se pudo actualizar la película:", titulo);
+      return res.status(404).json({ error: "No se pudo actualizar la película" });
+    }
+
+    console.log(`✅ Película actualizada correctamente: '${titulo}'`);
+
+    const updatedMovie = result.records[0];
+    res.json({
+      titulo: updatedMovie.get("titulo"),
+      estado: updatedMovie.get("estado"),
+      calificacion: updatedMovie.get("calificacion") || "No calificada",
+    });
+
+  } catch (error) {
+    console.error("❌ Error al actualizar película:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
 
 
 
