@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import "./css/GenreSelection.css"; // Importamos el CSS corregido
 
 function GenreSelection() {
   const [genres, setGenres] = useState([]);
@@ -41,20 +42,20 @@ function GenreSelection() {
   };
 
   return (
-    <div>
-      <h1>Selecciona tus Géneros Favoritos</h1>
-      <div>
+    <div className="genre-selection-container">
+      <h1 className="genre-title">Selecciona tus Géneros Favoritos</h1>
+      <div className="genre-buttons">
         {genres.map((genre, index) => (
           <button
             key={index}
             onClick={() => handleGenreToggle(genre)}
-            style={{ backgroundColor: selectedGenres.includes(genre) ? "lightblue" : "white" }}
+            className={`genre-button ${selectedGenres.includes(genre) ? "selected" : ""}`}
           >
             {genre}
           </button>
         ))}
       </div>
-      <button onClick={handleSavePreferences}>Guardar y Continuar</button>
+      <button className="save-button" onClick={handleSavePreferences}>Guardar y Continuar</button>
     </div>
   );
 }

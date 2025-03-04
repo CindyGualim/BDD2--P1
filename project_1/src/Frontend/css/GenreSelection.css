@@ -1,0 +1,69 @@
+/* Contenedor principal */
+.genre-selection-container {
+    text-align: center;
+    padding: 20px;
+    background-color: #030303;
+    min-height: 100vh;
+}
+
+/* Título */
+.genre-title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    color: white;
+    background-color: #FFBE10;
+    padding: 10px;
+    border-radius: 5px;
+    display: inline-block;
+}
+
+/* Contenedor de los botones */
+.genre-buttons {
+    display: flex;
+    flex-wrap: wrap; /* Permitir que los botones se acomoden en varias líneas */
+    justify-content: center;
+    gap: 10px; /* Espacio entre botones */
+    max-width: 800px;
+    margin: auto;
+    padding: 20px;
+}
+
+/* Estilos de los botones de género */
+.genre-button {
+    padding: 10px 15px;
+    font-size: 16px;
+    border: 2px solid #0044cc;
+    border-radius: 5px;
+    background-color: white;
+    color: #0044cc;
+    cursor: pointer;
+    width: 150px; /* Asegura que todos los botones tengan el mismo ancho */
+    text-align: center;
+    transition: all 0.3s ease-in-out;
+}
+
+/* Estilo cuando se selecciona un género */
+.genre-button.selected {
+    background-color: #0044cc;
+    color: white;
+}
+
+/* Botón de guardar */
+.save-button {
+    display: block;
+    margin: 20px auto;
+    padding: 12px 20px;
+    font-size: 18px;
+    background-color: #F25C05;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease-in-out;
+}
+
+/* Hover para el botón de guardar */
+.save-button:hover {
+    background-color: #F25C05;
+}
