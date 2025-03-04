@@ -48,6 +48,7 @@ function MovieDetails() {
       console.log("✅ Película marcada como vista:", response.data);
       setHasSeen(true);
       setWatchedDate(new Date().toISOString().split("T")[0]);
+      setTimeout(() => navigate("/recommendations"), 1000); // Redirigir después de 1 segundo
     })
     .catch(error => console.error("❌ Error al marcar la película como vista:", error));
   };
@@ -59,7 +60,10 @@ function MovieDetails() {
       email: userEmail,
       calificacion: newRating
     })
-    .then(response => console.log("✅ Calificación actualizada:", response.data))
+    .then(response => {
+      console.log("✅ Calificación actualizada:", response.data);
+      setTimeout(() => navigate("/recommendations"), 1000); // Redirigir después de 1 segundo
+    })
     .catch(error => console.error("❌ Error al actualizar la calificación:", error));
   };
 
@@ -116,9 +120,9 @@ function MovieDetails() {
         </div>
       )}
 
-      {/* ✅ Botón de regreso */}
-      <button onClick={() => navigate(-1)} className="back-button">
-        🔙 Volver
+      {/* ✅ Botón de regreso que redirige a Recommendations */}
+      <button onClick={() => navigate("/recommendations")} className="back-button">
+        🔙 Volver a recomendaciones
       </button>
     </div>
   );
