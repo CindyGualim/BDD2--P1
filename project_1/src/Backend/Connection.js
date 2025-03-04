@@ -326,47 +326,7 @@ app.get("/movie/:titulo", async (req, res) => {
 });
 
 
-// PUT: Actualizar la calificación y el estado de visualización de la película
-app.put("/movie/:titulo", async (req, res) => {
-  const { titulo } = req.params;
-  const { visto, calificacion, usuarioNombre } = req.body; // Recibimos el estado de si se vio y la calificación
-  console.log(`📩 Actualizando película: '${titulo}'`);
 
-  const session = driver.session();
-  try {
-    const query = `
-      MATCH (u:Usuario)-[r:CALIFICA]->(p:Película)
-      WHERE p.titulo = $titulo AND u.nombre = $usuarioNombre
-      SET p.estadoParaUsuario = CASE WHEN $visto = true THEN 'Visto' ELSE p.estadoParaUsuario END,
-          r.puntuacion = $calificacion
-      RETURN p.titulo AS titulo, p.estadoParaUsuario AS estado, r.puntuacion AS calificacion
-    `;
-
-    console.log(`🟡 Ejecutando actualización para: '${titulo}'`);
-
-    const result = await session.run(query, { titulo, visto, calificacion, usuarioNombre });
-
-    if (result.records.length === 0) {
-      console.error("❌ No se pudo actualizar la película:", titulo);
-      return res.status(404).json({ error: "No se pudo actualizar la película" });
-    }
-
-    console.log(`✅ Película actualizada correctamente: '${titulo}'`);
-
-    const updatedMovie = result.records[0];
-    res.json({
-      titulo: updatedMovie.get("titulo"),
-      estado: updatedMovie.get("estado"),
-      calificacion: updatedMovie.get("calificacion") || "No calificada",
-    });
-
-  } catch (error) {
-    console.error("❌ Error al actualizar película:", error);
-    res.status(500).json({ error: error.message });
-  } finally {
-    await session.close();
-  }
-});
 
 // 📌 Ruta para marcar una película como vista
 app.post("/mark-as-watched", async (req, res) => {
@@ -403,22 +363,27 @@ app.get("/watched-movies/:email", async (req, res) => {
           p.titulo AS title, 
           v.fecha AS watchedDate, 
           COLLECT(DISTINCT g.nombre) AS genres,  
-          COALESCE(r.puntuacion, 0) AS rating  // ✅ Si no hay calificación, devuelve 0 en lugar de null
+          COALESCE(r.puntuacion, 0) AS rating
        ORDER BY v.fecha DESC`,
       { email }
     );
 
     const watchedMovies = result.records.map(record => {
       const watchedDate = record.get("watchedDate");
-      const formattedDate = watchedDate 
+      const formattedDate = watchedDate
         ? `${watchedDate.year.low}-${String(watchedDate.month.low).padStart(2, "0")}-${String(watchedDate.day.low).padStart(2, "0")}`
         : "Fecha desconocida";
-      
+
+      const ratingValue = record.get("rating");
+      const rating = (ratingValue && ratingValue.low !== undefined)
+        ? ratingValue.low
+        : ratingValue || 0;
+
       return {
         title: record.get("title"),
         genres: record.get("genres").length > 0 ? record.get("genres") : ["No disponibles"],
         watchedDate: formattedDate,
-        rating: record.get("rating") ? record.get("rating").low : 0,  // ✅ Si no hay calificación, aseguramos que sea 0
+        rating
       };
     });
 
@@ -432,16 +397,16 @@ app.get("/watched-movies/:email", async (req, res) => {
 });
 
 
-// 📌 PUT: Actualizar o crear calificación de una película
+/// ¡Solo dejar esta!
 app.put("/movie/:titulo", async (req, res) => {
   const { titulo } = req.params;
   const { email, calificacion } = req.body;
   const session = driver.session();
 
   try {
-    await session.run(
+    const result = await session.run(
       `MATCH (u:Usuario {email: $email}), (p:Película {titulo: $titulo})
-       MERGE (u)-[r:CALIFICA]->(p)  // 🔹 Si no existe, la crea. Si ya existe, la actualiza.
+       MERGE (u)-[r:CALIFICA]->(p)
        SET r.puntuacion = $calificacion
        RETURN r.puntuacion AS nuevaCalificacion`,
       { email, titulo, calificacion }

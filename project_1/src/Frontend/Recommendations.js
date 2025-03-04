@@ -26,7 +26,6 @@ function Recommendations() {
     axios.get(`http://localhost:5000/watched-movies/${userEmail}`)
       .then(response => {
         setWatchedMovies(response.data);
-        // ✅ Inicializar correctamente las calificaciones
         const ratings = {};
         response.data.forEach(movie => {
           ratings[movie.title] = movie.rating !== null ? movie.rating : 0;
@@ -45,7 +44,8 @@ function Recommendations() {
   };
 
   const handleSaveRating = async (title) => {
-    if (!selectedRating[title] || isNaN(selectedRating[title])) return;
+    if (selectedRating[title] === "" || isNaN(selectedRating[title])) return;
+
     
     try {
       await axios.put("http://localhost:5000/movie/" + encodeURIComponent(title), {
@@ -57,6 +57,21 @@ function Recommendations() {
       console.error("❌ Error al guardar calificación:", error);
     }
   };
+
+  const handleSaveAndGoBack = async () => {
+    const ratingPromises = Object.keys(selectedRating).map((title) =>
+      handleSaveRating(title)
+    );
+  
+    try {
+      await Promise.all(ratingPromises);
+      console.log("✅ Todas las calificaciones han sido guardadas correctamente.");
+      navigate("/login");
+    } catch (error) {
+      console.error("❌ Error al guardar algunas calificaciones:", error);
+    }
+  };
+  
 
   return (
     <div className="recommendations-container">
@@ -91,7 +106,14 @@ function Recommendations() {
               <h3>{movie.title}</h3>
               <p>📅 Vista el: {movie.watchedDate}</p>
               <p>🎭 Géneros: {movie.genres?.join(", ") || "No disponibles"}</p>
-              <p>⭐ Calificación: <strong>{selectedRating[movie.title]}</strong></p>
+              <p>⭐ Calificación: 
+                <input 
+                  type="number" 
+                  value={selectedRating[movie.title]}
+                  onChange={(e) => setSelectedRating({...selectedRating, [movie.title]: e.target.value})}
+                  min="0" max="10"
+                />
+              </p>
             </div>
           ))
         ) : (
@@ -99,7 +121,7 @@ function Recommendations() {
         )}
       </div>
 
-      <button className="back-button" onClick={() => navigate("/profile")}>🔙 Volver al Perfil</button>
+      <button className="back-button" onClick={handleSaveAndGoBack}>🔙 Volver al Perfil</button>
     </div>
   );
 }
