@@ -38,6 +38,11 @@ function Recommendations() {
 
   }, [userEmail, navigate]);
 
+  // Función para navegar a la página de detalles
+  const handleMovieClick = (titulo) => {
+    navigate(`/movie/${encodeURIComponent(titulo)}`);
+  };
+
   return (
     <div>
       <h1>🎬 Películas Recomendadas</h1>
@@ -46,7 +51,11 @@ function Recommendations() {
       {personalized.length > 0 ? (
         <ul>
           {personalized.map((movie, index) => (
-            <li key={index}>
+            <li 
+              key={index} 
+              onClick={() => handleMovieClick(movie.title)}
+              style={{ cursor: "pointer", color: "blue", textDecoration: "underline" }}
+            >
               {movie.title} - 🎯 Relevancia: {movie.relevancia} - 🎭 Géneros: {movie.generosCoincidentes.join(", ")}
             </li>
           ))}
@@ -59,7 +68,11 @@ function Recommendations() {
       {global.length > 0 ? (
         <ul>
           {global.map((movie, index) => (
-            <li key={index}>
+            <li 
+              key={index} 
+              onClick={() => handleMovieClick(movie.title)}
+              style={{ cursor: "pointer", color: "blue", textDecoration: "underline" }}
+            >
               {movie.title} - 🌎 Popularidad: {movie.popularidad}
             </li>
           ))}

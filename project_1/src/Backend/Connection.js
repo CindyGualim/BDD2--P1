@@ -254,6 +254,58 @@ app.get("/recommendations/:email", async (req, res) => {
   }
 });
 
+// GET: Obtener detalles de una película por su título
+app.get("/movie/:titulo", async (req, res) => {
+  let { titulo } = req.params;
+  console.log(`📩 Buscando información de la película: '${titulo}'`);
+
+  const normalizedTitulo = titulo.trim();
+  console.log(`🔎 Título normalizado recibido en el backend: '${normalizedTitulo}'`);
+
+  const session = driver.session();
+  try {
+    const query = `
+      MATCH (p:Película) 
+      WHERE p.titulo = $normalizedTitulo
+      OPTIONAL MATCH (p)-[:PERTENECE_A]->(g:Genero)
+      OPTIONAL MATCH (p)-[:TRABAJA_CON]->(d:Director)
+      RETURN p.titulo AS titulo, 
+             p.anio AS anio, 
+             p.calificacion AS calificacion, 
+             p.popularidad AS popularidad, 
+             COLLECT(g.nombre) AS generos, 
+             d.nombre AS director
+    `;
+
+    console.log(`🟡 Ejecutando consulta con título: '${normalizedTitulo}'`);
+
+    const result = await session.run(query, { normalizedTitulo });
+
+    if (result.records.length === 0) {
+      console.error("❌ Película no encontrada en Neo4j:", titulo);
+      return res.status(404).json({ error: "Película no encontrada" });
+    }
+
+    console.log(`✅ Película encontrada en Neo4j: '${titulo}'`);
+
+    const movie = result.records[0];
+
+    res.json({
+      titulo: movie.get("titulo"),
+      anio: movie.get("anio") ? movie.get("anio").low : "Desconocido",  // ✅ Convertimos anio a número normal
+      calificacion: movie.get("calificacion") || "Sin calificación",
+      popularidad: movie.get("popularidad") || 0,
+      generos: movie.get("generos"),
+      director: movie.get("director") || "Desconocido",
+    });
+
+  } catch (error) {
+    console.error("❌ Error en /movie/:titulo:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
 
 
 
