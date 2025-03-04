@@ -263,7 +263,6 @@ app.get("/recommendations/:email", async (req, res) => {
 });
 
 // GET: Obtener detalles de una película por su título
-// GET: Obtener detalles de una película por su título
 app.get("/movie/:titulo", async (req, res) => {
   let { titulo } = req.params;
   console.log(`📩 Buscando información de la película: '${titulo}'`);
@@ -369,6 +368,108 @@ app.put("/movie/:titulo", async (req, res) => {
   }
 });
 
+// 📌 Ruta para marcar una película como vista
+app.post("/mark-as-watched", async (req, res) => {
+  const { email, movieTitle } = req.body;
+  const session = driver.session();
+
+  try {
+    await session.run(
+      `MATCH (u:Usuario {email: $email}), (p:Película {titulo: $movieTitle})
+       MERGE (u)-[:VIO {fecha: date()}]->(p)`,
+      { email, movieTitle }
+    );
+
+    res.status(200).json({ message: "Película marcada como vista" });
+  } catch (error) {
+    console.error("❌ Error al marcar película como vista:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+// Ruta para obtener películas vistas
+app.get("/watched-movies/:email", async (req, res) => {
+  const { email } = req.params;
+  const session = driver.session();
+
+  try {
+    const result = await session.run(
+      `MATCH (u:Usuario {email: $email})-[v:VIO]->(p)
+       OPTIONAL MATCH (u)-[r:CALIFICA]->(p)
+       RETURN p.titulo AS title, p.generos AS genres, v.fecha AS watchedDate, r.puntuacion AS rating
+       ORDER BY v.fecha DESC`,
+      { email }
+    );
+
+    const watchedMovies = result.records.map(record => ({
+      title: record.get("title"),
+      genres: record.get("genres") || [],
+      watchedDate: record.get("watchedDate"),
+      rating: record.get("rating")?.low || null,
+    }));
+
+    res.json(watchedMovies);
+  } catch (error) {
+    console.error("❌ Error al obtener historial de películas vistas:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+// 📌 Actualizar calificación de película
+app.put("/movie/:titulo", async (req, res) => {
+  const { titulo } = req.params;
+  const { email, calificacion } = req.body;
+  const session = driver.session();
+
+  try {
+    await session.run(
+      `MATCH (u:Usuario {email: $email})-[r:CALIFICA]->(p:Película {titulo: $titulo})
+       SET r.puntuacion = $calificacion`,
+      { email, titulo, calificacion }
+    );
+
+    res.json({ message: "Calificación actualizada correctamente" });
+  } catch (error) {
+    console.error("❌ Error al actualizar la calificación:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+
+// 📌 GET: Obtener películas recomendadas para "Volver a ver" según calificación alta
+app.get("/re-watch-movies/:email", async (req, res) => {
+  const { email } = req.params;
+  const session = driver.session();
+
+  try {
+    const result = await session.run(
+      `MATCH (u:Usuario {email: $email})-[r:CALIFICA]->(p)
+       WHERE r.puntuacion >= 7
+       RETURN p.titulo AS title, p.generos AS genres, r.puntuacion AS rating
+       ORDER BY r.puntuacion DESC`,
+      { email }
+    );
+
+    const reWatchMovies = result.records.map(record => ({
+      title: record.get("title"),
+      genres: record.get("genres") || [],
+      rating: record.get("rating").low || 0,
+    }));
+
+    res.json(reWatchMovies);
+  } catch (error) {
+    console.error("❌ Error al obtener películas para volver a ver:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
 
 
 
