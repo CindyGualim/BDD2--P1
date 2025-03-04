@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import "./css/rec.css"; // Importar el CSS
 
 function Recommendations() {
   const [personalized, setPersonalized] = useState([]);
@@ -15,73 +16,61 @@ function Recommendations() {
       return;
     }
 
-    // Llamada para recomendaciones personalizadas
     axios.get(`http://localhost:5000/recommendations/${userEmail}`)
       .then((response) => {
         console.log("📌 Respuesta del backend (recomendaciones):", response.data);
-        const personalizedMovies = response.data.filter(movie => movie.generosCoincidentes.length > 0);
-        setPersonalized(personalizedMovies);
+        setPersonalized(response.data);
       })
-      .catch((error) => {
-        console.error("❌ Error al obtener recomendaciones:", error);
-      });
+      .catch((error) => console.error("❌ Error al obtener recomendaciones:", error));
 
-    // Llamada para el top global de películas
     axios.get(`http://localhost:5000/top-movies`)
       .then((response) => {
         console.log("🔥 Respuesta del backend (Top Global):", response.data);
         setGlobal(response.data);
       })
-      .catch((error) => {
-        console.error("❌ Error al obtener top global:", error);
-      });
-
+      .catch((error) => console.error("❌ Error al obtener top global:", error));
   }, [userEmail, navigate]);
 
-  // Función para navegar a la página de detalles
   const handleMovieClick = (titulo) => {
     navigate(`/movie/${encodeURIComponent(titulo)}`);
   };
 
   return (
-    <div>
+    <div className="recommendations-container">
       <h1>🎬 Películas Recomendadas</h1>
 
+      {/* Sección de recomendaciones personalizadas */}
       <h2>📌 Basado en tus gustos</h2>
       {personalized.length > 0 ? (
-        <ul>
+        <div className="movies-grid">
           {personalized.map((movie, index) => (
-            <li 
-              key={index} 
-              onClick={() => handleMovieClick(movie.title)}
-              style={{ cursor: "pointer", color: "blue", textDecoration: "underline" }}
-            >
-              {movie.title} - 🎯 Relevancia: {movie.relevancia} - 🎭 Géneros: {movie.generosCoincidentes.join(", ")}
-            </li>
+            <div key={index} className="movie-card" onClick={() => handleMovieClick(movie.title)}>
+              <h3>{movie.title}</h3>
+              <p>🎯 Relevancia: {movie.relevancia}</p>
+              <p>🎭 Géneros: {movie.generosCoincidentes?.join(", ")}</p>
+            </div>
           ))}
-        </ul>
+        </div>
       ) : (
-        <p>⚠️ No hay recomendaciones personalizadas disponibles.</p>
+        <p className="empty-message">⚠️ No hay recomendaciones personalizadas disponibles.</p>
       )}
 
+      {/* Sección del top global */}
       <h2>🔥 Top Global</h2>
       {global.length > 0 ? (
-        <ul>
+        <div className="movies-grid">
           {global.map((movie, index) => (
-            <li 
-              key={index} 
-              onClick={() => handleMovieClick(movie.title)}
-              style={{ cursor: "pointer", color: "blue", textDecoration: "underline" }}
-            >
-              {movie.title} - 🌎 Popularidad: {movie.popularidad}
-            </li>
+            <div key={index} className="movie-card" onClick={() => handleMovieClick(movie.title)}>
+              <h3>{movie.title}</h3>
+              <p>🌎 Popularidad: {movie.popularidad}</p>
+            </div>
           ))}
-        </ul>
+        </div>
       ) : (
-        <p>📌 No hay películas populares disponibles.</p>
+        <p className="empty-message">📌 No hay películas populares disponibles.</p>
       )}
 
-      <button onClick={() => navigate("/dashboard")}>🔙 Volver al Perfil</button>
+      <button className="back-button" onClick={() => navigate("/dashboard")}>🔙 Volver al Perfil</button>
     </div>
   );
 }

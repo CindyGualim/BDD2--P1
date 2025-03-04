@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import "./css/home.css"; // Importar estilos
 
 function Home() {
   const [recommendedMovies, setRecommendedMovies] = useState([]);
@@ -18,73 +19,71 @@ function Home() {
       return;
     }
 
-    // Obtener recomendaciones personalizadas del usuario
+    // Obtener recomendaciones personalizadas
     axios.get(`http://localhost:5000/recommendations/${userEmail}`)
-      .then(response => {
-        setRecommendedMovies(response.data);
-      })
-      .catch(error => {
-        console.error("Error al obtener recomendaciones:", error);
-      });
+      .then(response => setRecommendedMovies(response.data))
+      .catch(error => console.error("Error al obtener recomendaciones:", error));
 
     // Obtener el top global de películas más populares
     axios.get("http://localhost:5000/top-movies")
-    .then(response => {
-      console.log("🏆 Top películas recibidas:", response.data);  // <--- LOG PARA DEPURAR
-      setTopMovies(response.data);
-    })
-    .catch(error => {
-      console.error("❌ Error al obtener top de películas:", error);
+      .then(response => {
+        console.log("🏆 Top películas recibidas:", response.data);
+        setTopMovies(response.data);
       })
+      .catch(error => console.error("❌ Error al obtener top de películas:", error))
       .finally(() => setLoading(false));
 
   }, [userEmail, navigate]);
 
   return (
-    <div style={{ padding: "20px", fontFamily: "Arial, sans-serif" }}>
+    <div className="home-container">
       <h1>🎬 Bienvenido a tu página de recomendaciones</h1>
 
       {loading ? (
-        <p>⏳ Cargando recomendaciones...</p>
+        <p className="loading-text">⏳ Cargando recomendaciones...</p>
       ) : (
         <>
+          {/* Sección de recomendaciones */}
           <h2>📌 Películas Recomendadas para Ti</h2>
           {recommendedMovies.length > 0 ? (
-            <ul>
+            <div className="movie-grid">
               {recommendedMovies.map((movie, index) => (
-                <li key={index} style={{ marginBottom: "10px" }}>
-                  🎥 {movie.title} - ⭐ Relevancia: {movie.relevancia}
-                </li>
+                <div key={index} className="movie-card">
+                  <h3>{movie.title}</h3>
+                  <p>⭐ Relevancia: {movie.relevancia}</p>
+                </div>
               ))}
-            </ul>
+            </div>
           ) : (
-            <p>⚠️ No hay recomendaciones disponibles. ¿Seleccionaste géneros?</p>
+            <p className="empty-message">⚠️ No hay recomendaciones disponibles. ¿Seleccionaste géneros?</p>
           )}
 
-        <h2>🏆 Top Global de Películas</h2>
-        {topMovies.length > 0 ? (
-          <ul>
-            {topMovies.map((movie, index) => (
-              <li key={index} style={{ marginBottom: "10px" }}>
-                🎥 {movie.title} - 📊 Popularidad: {movie.popularidad}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>⚠️ No hay películas populares disponibles.</p>
-        )}
-
+          {/* Sección del top global */}
+          <h2>🏆 Top Global de Películas</h2>
+          {topMovies.length > 0 ? (
+            <div className="movie-grid">
+              {topMovies.map((movie, index) => (
+                <div key={index} className="movie-card">
+                  <h3>{movie.title}</h3>
+                  <p>📊 Popularidad: {movie.popularidad}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-message">⚠️ No hay películas populares disponibles.</p>
+          )}
         </>
       )}
 
-      <div style={{ marginTop: "20px" }}>
-        <button onClick={() => navigate("/genre-selection")} style={{ marginRight: "10px", padding: "10px", fontSize: "16px" }}>
+      {/* Botones de acción */}
+      <div className="buttons-container">
+        <button className="update-button" onClick={() => navigate("/genre-selection")}>
           🔄 Actualizar Preferencias
         </button>
-        <button onClick={() => {
+        <button className="logout-button" onClick={() => {
           localStorage.removeItem("userEmail");
           navigate("/login");
-        }} style={{ padding: "10px", fontSize: "16px" }}>
+        }}>
           🚪 Cerrar Sesión
         </button>
       </div>

@@ -1,0 +1,103 @@
+/* Estilos generales */
+.home-container {
+    padding: 20px;
+    font-family: "Arial", sans-serif;
+    text-align: center;
+    background-color: #121212;
+    color: white;
+    min-height: 100vh;
+  }
+  
+  /* Títulos */
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 15px;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+    margin-top: 20px;
+  }
+  
+  /* Grid de películas */
+  .movie-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+    justify-content: center;
+  }
+  
+  /* Tarjetas de película */
+  .movie-card {
+    background-color: #1e1e1e;
+    border-radius: 10px;
+    padding: 15px;
+    text-align: center;
+    box-shadow: 0px 4px 8px rgba(255, 255, 255, 0.1);
+    transition: transform 0.2s ease-in-out;
+  }
+  
+  .movie-card h3 {
+    color: #ffcc00;
+    font-size: 1.2rem;
+  }
+  
+  .movie-card p {
+    color: #bbbbbb;
+  }
+  
+  .movie-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0px 6px 12px rgba(255, 255, 255, 0.2);
+  }
+  
+  /* Mensaje cuando no hay datos */
+  .empty-message {
+    font-size: 1rem;
+    color: #ff5555;
+    font-style: italic;
+    margin-top: 10px;
+  }
+  
+  /* Botones */
+  .buttons-container {
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+  }
+  
+  .update-button, .logout-button {
+    padding: 12px 20px;
+    font-size: 16px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+  }
+  
+  .update-button {
+    background-color: #4caf50;
+    color: white;
+  }
+  
+  .update-button:hover {
+    background-color: #45a049;
+  }
+  
+  .logout-button {
+    background-color: #d32f2f;
+    color: white;
+  }
+  
+  .logout-button:hover {
+    background-color: #b71c1c;
+  }
+  
+  /* Texto de carga */
+  .loading-text {
+    font-size: 1.2rem;
+    color: #ffcc00;
+  }
+  
