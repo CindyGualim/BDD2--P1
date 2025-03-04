@@ -192,20 +192,23 @@ app.get("/top-movies", async (req, res) => {
 
   try {
     const query = `
-      MATCH (p:Película)
+      MATCH (p:Película)  
+      WHERE p.popularidad IS NOT NULL
       RETURN p.titulo AS title, p.popularidad AS popularidad
       ORDER BY p.popularidad DESC
       LIMIT 10;
     `;
 
+
     const result = await session.run(query);
 
     const topMovies = result.records.map(record => ({
       title: record.get("title"),
-      popularidad: record.get("popularidad").toNumber(),
+      popularidad: record.get("popularidad") ? record.get("popularidad").toNumber() : 0,
     }));
 
-    console.log("🔹 Datos enviados al frontend:", topMovies); // <-- Agrega este log para revisar
+    console.log("🔹 Datos enviados al frontend (Top Global):", topMovies); // Agrega este log para verificar
+
     res.json(topMovies);
   } catch (error) {
     console.error("❌ Error en la consulta de top de películas:", error);
@@ -219,31 +222,38 @@ app.get("/top-movies", async (req, res) => {
 // GET: Obtener recomendaciones de películas basadas en los géneros preferidos del usuario
 app.get("/recommendations/:email", async (req, res) => {
   const { email } = req.params;
+  console.log(`📩 Recibiendo solicitud de recomendaciones personalizadas para: ${email}`);
   const session = driver.session();
 
   try {
     const query = `
-      MATCH (u:Usuario {email: $email})-[:GUSTA]->(g:Genero)<-[:PERTENECE_A]-(p:Película)
-      RETURN p.titulo AS title, COUNT(g) AS relevancia
-      ORDER BY relevancia DESC
-      LIMIT 10;
+      MATCH (u:Usuario {email: $email})-[:GUSTA]->(g:Genero)
+      MATCH (p:Película)-[:PERTENECE_A]->(g)
+      WITH p, COLLECT(g.nombre) AS generosCoincidentes, COUNT(g) AS relevancia, COALESCE(p.popularidad, 0) AS popularidad
+      ORDER BY relevancia DESC, popularidad DESC
+      LIMIT 10
+      RETURN p.titulo AS title, generosCoincidentes, relevancia, popularidad;
     `;
 
     const result = await session.run(query, { email });
 
-    const recommendations = result.records.map(record => ({
+    const personalizedRecommendations = result.records.map(record => ({
       title: record.get("title"),
+      generosCoincidentes: record.get("generosCoincidentes"),
       relevancia: record.get("relevancia").toNumber(),
+      popularidad: record.get("popularidad").toNumber(),
     }));
 
-    res.json(recommendations);
+    console.log("📌 Datos enviados al frontend (Recomendaciones Personalizadas):", JSON.stringify(personalizedRecommendations, null, 2));
+    res.json(personalizedRecommendations);
   } catch (error) {
-    console.error("❌ Error en la consulta de recomendaciones:", error);
+    console.error("❌ Error en la consulta de recomendaciones personalizadas:", error);
     res.status(500).json({ error: error.message });
   } finally {
     await session.close();
   }
 });
+
 
 
 

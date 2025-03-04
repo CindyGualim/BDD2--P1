@@ -1,21 +1,20 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Register from "./Frontend/Register";
-import Login from "./Frontend/Login";
-import GenreSelection from "./Frontend/Genre_Selection";
-import Home from "./Frontend/Home";
+import Login from "./Login";
+import Recommendations from "./Recommendations";
+import Profile from "./Profile";
+import Home from "./Home";
 
-
-function App() {
+function AppRouter() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/genre-selection" element={<GenreSelection />} />
+        <Route path="/" element={<Login />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/recommendations" element={<Recommendations />} />
+        <Route path="/home" element={<Home />} />
       </Routes>
     </Router>
   );
 }
 
-export default App;
+export default AppRouter;

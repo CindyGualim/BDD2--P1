@@ -3,34 +3,72 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 function Recommendations() {
-  const [movies, setMovies] = useState([]);
+  const [personalized, setPersonalized] = useState([]);
+  const [global, setGlobal] = useState([]);
   const navigate = useNavigate();
-  const userEmail = "usuario@test.com"; // Reemplázalo con el email del usuario autenticado
+  const userEmail = localStorage.getItem("userEmail");
 
   useEffect(() => {
-    axios
-      .get(`http://localhost:5000/recommendations/${userEmail}`)
+    if (!userEmail) {
+      console.error("❌ No hay usuario autenticado. Redirigiendo...");
+      navigate("/");
+      return;
+    }
+
+    // Llamada para recomendaciones personalizadas
+    axios.get(`http://localhost:5000/recommendations/${userEmail}`)
       .then((response) => {
-        setMovies(response.data);
+        console.log("📌 Respuesta del backend (recomendaciones):", response.data);
+        const personalizedMovies = response.data.filter(movie => movie.generosCoincidentes.length > 0);
+        setPersonalized(personalizedMovies);
       })
       .catch((error) => {
-        console.error("Error al obtener recomendaciones:", error);
+        console.error("❌ Error al obtener recomendaciones:", error);
       });
-  }, [userEmail]);
+
+    // Llamada para el top global de películas
+    axios.get(`http://localhost:5000/top-movies`)
+      .then((response) => {
+        console.log("🔥 Respuesta del backend (Top Global):", response.data);
+        setGlobal(response.data);
+      })
+      .catch((error) => {
+        console.error("❌ Error al obtener top global:", error);
+      });
+
+  }, [userEmail, navigate]);
 
   return (
     <div>
-      <h1>Películas Recomendadas</h1>
-      {movies.length > 0 ? (
+      <h1>🎬 Películas Recomendadas</h1>
+
+      <h2>📌 Basado en tus gustos</h2>
+      {personalized.length > 0 ? (
         <ul>
-          {movies.map((movie, index) => (
-            <li key={index}>{movie.title} - Relevancia: {movie.relevancia}</li>
+          {personalized.map((movie, index) => (
+            <li key={index}>
+              {movie.title} - 🎯 Relevancia: {movie.relevancia} - 🎭 Géneros: {movie.generosCoincidentes.join(", ")}
+            </li>
           ))}
         </ul>
       ) : (
-        <p>No hay recomendaciones disponibles.</p>
+        <p>⚠️ No hay recomendaciones personalizadas disponibles.</p>
       )}
-      <button onClick={() => navigate("/dashboard")}>Volver al Perfil</button>
+
+      <h2>🔥 Top Global</h2>
+      {global.length > 0 ? (
+        <ul>
+          {global.map((movie, index) => (
+            <li key={index}>
+              {movie.title} - 🌎 Popularidad: {movie.popularidad}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>📌 No hay películas populares disponibles.</p>
+      )}
+
+      <button onClick={() => navigate("/dashboard")}>🔙 Volver al Perfil</button>
     </div>
   );
 }

@@ -27,7 +27,7 @@ function Login() {
       if (response.status === 200) {
         alert("Inicio de sesión exitoso");
         localStorage.setItem("userEmail", email); // Guardar email en localStorage
-        navigate("/"); // 🔥 Redirigir directamente a Home.js
+        navigate("/recommendations"); // 🔥 Redirigir a la página de recomendaciones
       }
     } catch (error) {
       if (error.response && error.response.status === 401) {
