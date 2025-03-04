@@ -389,26 +389,38 @@ app.post("/mark-as-watched", async (req, res) => {
   }
 });
 
-// Ruta para obtener películas vistas
+// 📌 GET: Obtener historial de películas vistas correctamente
 app.get("/watched-movies/:email", async (req, res) => {
   const { email } = req.params;
   const session = driver.session();
 
   try {
     const result = await session.run(
-      `MATCH (u:Usuario {email: $email})-[v:VIO]->(p)
+      `MATCH (u:Usuario {email: $email})-[v:VIO]->(p:Película)
+       OPTIONAL MATCH (p)-[:PERTENECE_A]->(g:Genero)
        OPTIONAL MATCH (u)-[r:CALIFICA]->(p)
-       RETURN p.titulo AS title, p.generos AS genres, v.fecha AS watchedDate, r.puntuacion AS rating
+       RETURN 
+          p.titulo AS title, 
+          v.fecha AS watchedDate, 
+          COLLECT(DISTINCT g.nombre) AS genres,  
+          COALESCE(r.puntuacion, 0) AS rating  // ✅ Si no hay calificación, devuelve 0 en lugar de null
        ORDER BY v.fecha DESC`,
       { email }
     );
 
-    const watchedMovies = result.records.map(record => ({
-      title: record.get("title"),
-      genres: record.get("genres") || [],
-      watchedDate: record.get("watchedDate"),
-      rating: record.get("rating")?.low || null,
-    }));
+    const watchedMovies = result.records.map(record => {
+      const watchedDate = record.get("watchedDate");
+      const formattedDate = watchedDate 
+        ? `${watchedDate.year.low}-${String(watchedDate.month.low).padStart(2, "0")}-${String(watchedDate.day.low).padStart(2, "0")}`
+        : "Fecha desconocida";
+      
+      return {
+        title: record.get("title"),
+        genres: record.get("genres").length > 0 ? record.get("genres") : ["No disponibles"],
+        watchedDate: formattedDate,
+        rating: record.get("rating") ? record.get("rating").low : 0,  // ✅ Si no hay calificación, aseguramos que sea 0
+      };
+    });
 
     res.json(watchedMovies);
   } catch (error) {
@@ -419,7 +431,8 @@ app.get("/watched-movies/:email", async (req, res) => {
   }
 });
 
-// 📌 Actualizar calificación de película
+
+// 📌 PUT: Actualizar o crear calificación de una película
 app.put("/movie/:titulo", async (req, res) => {
   const { titulo } = req.params;
   const { email, calificacion } = req.body;
@@ -427,12 +440,14 @@ app.put("/movie/:titulo", async (req, res) => {
 
   try {
     await session.run(
-      `MATCH (u:Usuario {email: $email})-[r:CALIFICA]->(p:Película {titulo: $titulo})
-       SET r.puntuacion = $calificacion`,
+      `MATCH (u:Usuario {email: $email}), (p:Película {titulo: $titulo})
+       MERGE (u)-[r:CALIFICA]->(p)  // 🔹 Si no existe, la crea. Si ya existe, la actualiza.
+       SET r.puntuacion = $calificacion
+       RETURN r.puntuacion AS nuevaCalificacion`,
       { email, titulo, calificacion }
     );
 
-    res.json({ message: "Calificación actualizada correctamente" });
+    res.json({ message: "✅ Calificación guardada correctamente", calificacion });
   } catch (error) {
     console.error("❌ Error al actualizar la calificación:", error);
     res.status(500).json({ error: error.message });
@@ -440,6 +455,7 @@ app.put("/movie/:titulo", async (req, res) => {
     await session.close();
   }
 });
+
 
 
 // 📌 GET: Obtener películas recomendadas para "Volver a ver" según calificación alta
@@ -465,6 +481,43 @@ app.get("/re-watch-movies/:email", async (req, res) => {
     res.json(reWatchMovies);
   } catch (error) {
     console.error("❌ Error al obtener películas para volver a ver:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+// 📌 GET: Obtener películas similares a una ya vista
+app.get("/similar-movies/:title", async (req, res) => {
+  const { title } = req.params;
+  console.log(`📩 Buscando películas similares a: '${title}'`);
+
+  const session = driver.session();
+  try {
+    const query = `
+      MATCH (p:Pelicula {titulo: $title})-[:PERTENECE_A]->(g:Genero)
+      MATCH (similar:Pelicula)-[:PERTENECE_A]->(g)
+      WHERE similar.titulo <> $title
+      RETURN DISTINCT similar.titulo AS title, similar.popularidad AS popularidad
+      ORDER BY similar.popularidad DESC
+      LIMIT 10
+    `;
+
+    const result = await session.run(query, { title });
+
+    if (result.records.length === 0) {
+      return res.status(404).json({ message: "No se encontraron películas similares." });
+    }
+
+    const similarMovies = result.records.map(record => ({
+      title: record.get("title"),
+      popularidad: record.get("popularidad") ? record.get("popularidad").toNumber() : 0,
+    }));
+
+    console.log(`✅ Películas similares encontradas: ${JSON.stringify(similarMovies, null, 2)}`);
+    res.json(similarMovies);
+  } catch (error) {
+    console.error("❌ Error en la consulta de películas similares:", error);
     res.status(500).json({ error: error.message });
   } finally {
     await session.close();

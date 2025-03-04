@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import "./css/rec.css"; // ✅ Se usa el CSS correctamente
+import "./css/rec.css";
 
 function Recommendations() {
   const [personalized, setPersonalized] = useState([]);
   const [global, setGlobal] = useState([]);
   const [watchedMovies, setWatchedMovies] = useState([]);
   const [reWatchMovies, setReWatchMovies] = useState([]);
+  const [selectedRating, setSelectedRating] = useState({});
   const navigate = useNavigate();
   const userEmail = localStorage.getItem("userEmail");
 
@@ -24,8 +25,13 @@ function Recommendations() {
 
     axios.get(`http://localhost:5000/watched-movies/${userEmail}`)
       .then(response => {
-        console.log("🎞️ Historial de películas vistas actualizado:", response.data);
         setWatchedMovies(response.data);
+        // ✅ Inicializar correctamente las calificaciones
+        const ratings = {};
+        response.data.forEach(movie => {
+          ratings[movie.title] = movie.rating !== null ? movie.rating : 0;
+        });
+        setSelectedRating(ratings);
       })
       .catch(error => console.error("❌ Error al obtener historial:", error));
 
@@ -38,6 +44,20 @@ function Recommendations() {
     navigate(`/movie/${encodeURIComponent(title)}`);
   };
 
+  const handleSaveRating = async (title) => {
+    if (!selectedRating[title] || isNaN(selectedRating[title])) return;
+    
+    try {
+      await axios.put("http://localhost:5000/movie/" + encodeURIComponent(title), {
+        email: userEmail,
+        calificacion: parseInt(selectedRating[title], 10)
+      });
+      console.log("✅ Calificación guardada para:", title);
+    } catch (error) {
+      console.error("❌ Error al guardar calificación:", error);
+    }
+  };
+
   return (
     <div className="recommendations-container">
       <h1>🎬 Películas Recomendadas</h1>
@@ -45,11 +65,7 @@ function Recommendations() {
       <h2>📌 Basado en tus gustos</h2>
       <div className="movies-grid">
         {personalized.map((movie, index) => (
-          <div 
-            key={index} 
-            className="movie-card"
-            onClick={() => handleMovieClick(movie.title)}
-          >
+          <div key={index} className="movie-card" onClick={() => handleMovieClick(movie.title)}>
             <h3>{movie.title}</h3>
             <p>🎯 Relevancia: {movie.relevancia}</p>
             <p>🎭 Géneros: {movie.generosCoincidentes?.join(", ")}</p>
@@ -60,11 +76,7 @@ function Recommendations() {
       <h2>🔥 Top Global</h2>
       <div className="movies-grid">
         {global.map((movie, index) => (
-          <div 
-            key={index} 
-            className="movie-card"
-            onClick={() => handleMovieClick(movie.title)}
-          >
+          <div key={index} className="movie-card" onClick={() => handleMovieClick(movie.title)}>
             <h3>{movie.title}</h3>
             <p>🌎 Popularidad: {movie.popularidad}</p>
           </div>
@@ -74,30 +86,20 @@ function Recommendations() {
       <h2>🎞️ Historial de Películas Vistas</h2>
       <div className="movies-grid">
         {watchedMovies.length > 0 ? (
-          watchedMovies.map((movie, index) => {
-            let formattedDate = "Fecha desconocida";
-            if (movie.watchedDate && typeof movie.watchedDate === "object") {
-              const { year, month, day } = movie.watchedDate;
-              formattedDate = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-            }
-
-            return (
-              <div key={index} className="movie-card">
-                <h3>{movie.title}</h3>
-                <p>📅 Vista el: {formattedDate}</p>
-                <p>🎭 Géneros: {movie.genres?.join(", ") || "No disponibles"}</p>
-                <p>⭐ Calificación: {movie.rating ? `${movie.rating}/10` : "No calificada"}</p>
-              </div>
-            );
-          })
+          watchedMovies.map((movie, index) => (
+            <div key={index} className="movie-card">
+              <h3>{movie.title}</h3>
+              <p>📅 Vista el: {movie.watchedDate}</p>
+              <p>🎭 Géneros: {movie.genres?.join(", ") || "No disponibles"}</p>
+              <p>⭐ Calificación: <strong>{selectedRating[movie.title]}</strong></p>
+            </div>
+          ))
         ) : (
           <p className="empty-message">📌 No hay películas vistas aún.</p>
         )}
       </div>
 
-      <button className="back-button" onClick={() => navigate("/profile")}>
-        🔙 Volver al Perfil
-      </button>
+      <button className="back-button" onClick={() => navigate("/profile")}>🔙 Volver al Perfil</button>
     </div>
   );
 }
