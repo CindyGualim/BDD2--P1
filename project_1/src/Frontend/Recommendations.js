@@ -121,7 +121,6 @@ function Recommendations() {
         )}
       </div>
 
-      <button className="back-button" onClick={handleSaveAndGoBack}>🔙 Volver al Perfil</button>
     </div>
   );
 }
