@@ -1,0 +1,83 @@
+/* MovieReviewView.css */
+.review-container {
+    background-color: #000;
+    color: #fff;
+    min-height: 100vh;
+    padding: 1rem;
+    font-family: Arial, sans-serif;
+  }
+  
+  .movie-title {
+    color: #ffcc00;
+  }
+  
+  .review-form {
+    border: 1px solid #444;
+    padding: 1rem;
+    margin-bottom: 2rem;
+    border-radius: 8px;
+  }
+  
+  .review-form h2 {
+    color: #ffcc00;
+  }
+  
+  .stars {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+  }
+  
+  .star {
+    color: gray;
+    transition: color 0.2s;
+  }
+  
+  .star:hover {
+    color: #ffcc00;
+  }
+  
+  .star.filled {
+    color: #ffcc00;
+  }
+  
+  .btn-send {
+    background-color: #ffcc00;
+    border: none;
+    padding: 8px 16px;
+    color: #000;
+    cursor: pointer;
+    font-weight: bold;
+    border-radius: 5px;
+    margin-top: 10px;
+  }
+  
+  .btn-send:hover {
+    background-color: #ffb800;
+  }
+  
+  .review-card {
+    border: 1px solid #333;
+    padding: 0.8rem;
+    margin-bottom: 1rem;
+    border-radius: 6px;
+  }
+  
+  .stars-display {
+    font-size: 1.5rem;
+    color: #ffcc00;
+    margin-bottom: 0.3rem;
+  }
+  
+  .btn-like {
+    background-color: #333;
+    border: 1px solid #777;
+    color: #fff;
+    padding: 5px 10px;
+    cursor: pointer;
+  }
+  
+  .btn-like:hover {
+    background-color: #444;
+  }
+  

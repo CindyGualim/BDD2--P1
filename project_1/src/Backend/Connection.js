@@ -351,7 +351,7 @@ app.get("/actors", async (req, res) => {
 app.get("/movies", async (req, res) => {
   const session = driver.session();
   try {
-    const result = await session.run("MATCH (p:Pelicula) RETURN p.titulo AS title, p.popularidad AS popularity");
+    const result = await session.run("MATCH (p:Película) RETURN p.titulo AS title, p.popularidad AS popularity");
     const movies = result.records.map(record => ({
       title: record.get("title"),
       popularity: record.get("popularity"),
@@ -665,8 +665,8 @@ app.get("/similar-movies/:title", async (req, res) => {
   const session = driver.session();
   try {
     const query = `
-      MATCH (p:Pelicula {titulo: $title})-[:PERTENECE_A]->(g:Genero)
-      MATCH (similar:Pelicula)-[:PERTENECE_A]->(g)
+      MATCH (p:Película {titulo: $title})-[:PERTENECE_A]->(g:Genero)
+      MATCH (similar:Película)-[:PERTENECE_A]->(g)
       WHERE similar.titulo <> $title
       RETURN DISTINCT similar.titulo AS title, similar.popularidad AS popularidad
       ORDER BY similar.popularidad DESC
@@ -774,6 +774,160 @@ app.post("/update-last-seen", async (req, res) => {
   }
 });
 
+
+//   Devuelve todas las reseñas de la película y si el usuario actual ya calificó.
+app.get("/movie-reviews/:title", async (req, res) => {
+  const { title } = req.params;
+  // El email del usuario actual (puede venir en query o en headers)
+  const userEmail = req.query.email;  
+  const session = driver.session();
+
+  try {
+    const query = `
+      MATCH (p:Película {titulo: $title})<-[:SOBRE]-(r:Reseña)<-[:ESCRIBIO]-(author:Usuario)
+      OPTIONAL MATCH (u:Usuario {email: $userEmail})-[cal:CALIFICA]->(p)
+      RETURN 
+         r.puntuacion AS puntuacion,
+         r.fechaReseña AS fechaReseña,
+         r.comentario AS comentario,
+         COALESCE(r.likes, 0) AS likes,
+         r.spoiler AS spoiler,
+         author.email AS reviewAuthor,
+         author.nombre AS authorName,
+         // Si existe la relación CALIFICA entre este usuario y la película, es que ya la vio/calificó
+         CASE WHEN cal IS NULL THEN false ELSE true END AS userHasRated
+    `;
+
+    const result = await session.run(query, { title, userEmail });
+    let reviews = [];
+    let userHasRated = false;
+
+    for (const record of result.records) {
+      const puntuacion = record.get("puntuacion");
+      const fechaReseña = record.get("fechaReseña");
+      const comentario = record.get("comentario");
+      const likes = record.get("likes");
+      const spoiler = record.get("spoiler");
+      const reviewAuthor = record.get("reviewAuthor");
+      const authorName = record.get("authorName") || "Usuario anónimo";
+      const rated = record.get("userHasRated");
+
+      // Si en algún registro se detecta que userHasRated = true, lo guardamos
+      if (rated) {
+        userHasRated = true;
+      }
+
+      // Guardamos cada reseña
+      reviews.push({
+        puntuacion: puntuacion?.low ?? puntuacion,
+        fechaReseña: fechaReseña || "Desconocida",
+        comentario: comentario || "",
+        likes: likes?.low ?? likes,
+        spoiler: !!spoiler,
+        reviewAuthor,
+        authorName
+      });
+    }
+
+    return res.json({ reviews, userHasRated });
+  } catch (error) {
+    console.error("Error en GET /movie-reviews/:title:", error);
+    return res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+// POST /movie-reviews 
+//   Crea una nueva reseña (nodo :Reseña) y las relaciones con Usuario y Película.
+//   También asigna la relación CALIFICA para guardar puntuación en la relación (opcional).
+app.post("/movie-reviews", async (req, res) => {
+  const { email, title, puntuacion, comentario, spoiler } = req.body;
+  const session = driver.session();
+
+  try {
+    // Por simplicidad, si el usuario no ha "visto" la película, asumimos que en este momento la "marca" como vista
+    // Creamos un nodo :Reseña con las propiedades que requieres
+    // RELACIÓN: (Usuario)-[:ESCRIBIO]->(Reseña)-[:SOBRE]->(Película)
+    // Además, MERGE (Usuario)-[:CALIFICA {puntuacion}]->(Película)
+    const fechaReseña = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    const initialLikes = 0;
+
+    const result = await session.run(
+      `
+      MATCH (u:Usuario {email: $email}), (p:Película {titulo: $title})
+      CREATE (r:Reseña {
+        puntuacion: $puntuacion,
+        fechaReseña: $fechaReseña,
+        comentario: $comentario,
+        spoiler: $spoiler,
+        likes: $initialLikes
+      })
+      MERGE (u)-[:ESCRIBIO]->(r)
+      MERGE (r)-[:SOBRE]->(p)
+      MERGE (u)-[c:CALIFICA]->(p)
+      SET c.puntuacion = $puntuacion
+      RETURN r
+      `,
+      {
+        email,
+        title,
+        puntuacion: parseInt(puntuacion, 10),
+        fechaReseña,
+        comentario,
+        spoiler: !!spoiler,
+        initialLikes
+      }
+    );
+
+    if (result.records.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "No se pudo crear la reseña; revisa los datos." });
+    }
+
+    return res.json({ message: "Reseña creada/actualizada correctamente." });
+  } catch (error) {
+    console.error("Error en POST /movie-reviews:", error);
+    return res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+
+//   Incrementa la propiedad 'likes' de la reseña indicada
+app.post("/movie-reviews/:reviewId/like", async (req, res) => {
+  const { reviewId } = req.params;
+  const session = driver.session();
+
+  try {
+    // reviewId es un numeric ID de Neo4j (ID(r)) o algún otro identificador
+    // si estás usando ID(r), asegúrate de que en la creación de la reseña
+    // obtengas su ID con 'RETURN r, ID(r) as rId'
+    const result = await session.run(
+      `
+      MATCH (r:Reseña)
+      WHERE ID(r) = $reviewId
+      SET r.likes = COALESCE(r.likes, 0) + 1
+      RETURN r.likes AS newLikes
+      `,
+      { reviewId: parseInt(reviewId, 10) }
+    );
+
+    if (result.records.length === 0) {
+      return res.status(404).json({ message: "No se encontró la reseña." });
+    }
+
+    const newLikes = result.records[0].get("newLikes");
+    return res.json({ newLikes });
+  } catch (error) {
+    console.error("Error al dar like a la reseña:", error);
+    return res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
 
 app.get("/", (req, res) => {
     res.send("Servidor funcionando correctamente  ");

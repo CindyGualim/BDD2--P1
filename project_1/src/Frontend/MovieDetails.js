@@ -1,129 +1,105 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import "./css/rec.css"; 
-
-const API_URL = "http://localhost:5000";
 
 function MovieDetails() {
   const { titulo } = useParams();
-  const [movie, setMovie] = useState(null);
-  const [userRating, setUserRating] = useState(null);
-  const [hasSeen, setHasSeen] = useState(false);
-  const [watchedDate, setWatchedDate] = useState(null);
-  const userEmail = localStorage.getItem("userEmail");
   const navigate = useNavigate();
+  const userEmail = localStorage.getItem("userEmail");
+
+  const [movie, setMovie] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get(`${API_URL}/movie/${encodeURIComponent(titulo)}`)
-      .then(response => {
-        const data = response.data;
-        console.log("Datos de la película recibidos:", data);
-
-        const fixedData = {
-          ...data,
-          anio: typeof data.anio === "object" ? data.anio.low : data.anio,
-          calificacion: typeof data.calificacion === "object" ? data.calificacion.low : data.calificacion,
-          popularidad: typeof data.popularidad === "object" ? data.popularidad.low : data.popularidad
-        };
-
-        setMovie(fixedData);
-        setHasSeen(fixedData.estado === "Visto");
-        setUserRating(fixedData.usuario_calificacion || null);
-
-        if (fixedData.watchedDate && typeof fixedData.watchedDate === "object") {
-          const { year, month, day } = fixedData.watchedDate;
-          setWatchedDate(`${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
-        }
-      })
-      .catch(error => console.error("Error al obtener la película:", error));
+    const fetchMovie = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/movie/${encodeURIComponent(titulo)}`);
+        setMovie(response.data);
+      } catch (error) {
+        console.error("Error al obtener datos de la película:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMovie();
   }, [titulo]);
 
-  const handleMarkAsSeen = () => {
-    axios.post(`${API_URL}/mark-as-watched`, {
-      email: userEmail,
-      movieTitle: titulo
-    })
-    .then(response => {
-      console.log("✅ Película marcada como vista:", response.data);
-      setHasSeen(true);
-      setWatchedDate(new Date().toISOString().split("T")[0]);
-      setTimeout(() => navigate("/recommendations"), 1000); // Redirigir después de 1 segundo
-    })
-    .catch(error => console.error("Error al marcar la película como vista:", error));
+  const handleMarkAsWatched = async () => {
+    try {
+      await axios.post("http://localhost:5000/mark-as-watched", {
+        email: userEmail,
+        movieTitle: movie.titulo,
+      });
+      setMovie((prev) => ({ ...prev, estado: "Visto" }));
+    } catch (error) {
+      console.error("Error al marcar la película como vista:", error);
+    }
   };
 
-  const handleRatingChange = (newRating) => {
-    setUserRating(newRating);
-
-    axios.put(`${API_URL}/movie/${encodeURIComponent(titulo)}`, {
-      email: userEmail,
-      calificacion: newRating
-    })
-    .then(response => {
-      console.log("✅ Calificación actualizada:", response.data);
-      setTimeout(() => navigate("/recommendations"), 1000); // Redirigir después de 1 segundo
-    })
-    .catch(error => console.error("Error al actualizar la calificación:", error));
+  // AHORA navega a /review/:titulo en lugar de sólo mostrar un alert:
+  const handleGoToReview = () => {
+    navigate(`/review/${encodeURIComponent(movie.titulo)}`);
   };
 
-  if (!movie) return <p>📌 Cargando información de la película...</p>;
+  if (loading) {
+    return <div style={{ color: "#fff" }}>Cargando datos de la película...</div>;
+  }
+
+  if (!movie) {
+    return <div style={{ color: "#fff" }}>No se encontró la película.</div>;
+  }
+
+  // Convertir fecha a un string legible...
+  let fechaFormateada = "Sin fecha";
+  if (movie.fechaLanzamiento) {
+    try {
+      const dateObj = new Date(movie.fechaLanzamiento);
+      fechaFormateada = dateObj.toLocaleDateString("es-ES");
+    } catch (e) {
+      fechaFormateada = movie.fechaLanzamiento.toString();
+    }
+  }
 
   return (
-    <div className="recommendations-container">
-      <h1 style={{ color: "#ffcc00", fontWeight: "bold" }}>
-        {movie.titulo} ({movie.anio || "Desconocido"})
+    <div style={{ color: "#fff", backgroundColor: "#000", minHeight: "100vh", padding: "1rem" }}>
+      <h1>
+        {movie.titulo} ({fechaFormateada})
       </h1>
 
-      <p><strong>🎭 Géneros:</strong> {movie.generos?.join(", ") || "No disponible"}</p>
-      <p><strong>🎬 Director:</strong> {movie.director || "Desconocido"}</p>
-      <p><strong>🔥 Popularidad:</strong> {movie.popularidad || "No disponible"}</p>
-      <p><strong>🎬 Actores principales:</strong> {movie.actores?.join(", ") || "No disponibles"}</p>
-      <p><strong>📜 Sinopsis:</strong> {movie.sinopsis || "No disponible"}</p>
+      <p><strong>Géneros asociados:</strong> {movie.generosAsociados?.join(", ") || "No especificados"}</p>
+      <p><strong>Actores:</strong> {movie.actores?.join(", ") || "Sin información"}</p>
+      <p><strong>Director:</strong> {movie.director || "Desconocido"}</p>
+      <p><strong>Estado:</strong> {movie.estado || "No visto"}</p>
+      <p><strong>Público objetivo:</strong> {movie.publicoObjetivo || "Desconocido"}</p>
+      <p><strong>Formato:</strong> {movie.formato || "No definido"}</p>
 
-      {hasSeen && watchedDate && (
-        <p><strong>📅 Vista el:</strong> {watchedDate}</p>
+      {movie.estado === "Visto" ? (
+        <button 
+          onClick={handleGoToReview} 
+          style={{
+            backgroundColor: "yellow",
+            border: "none",
+            padding: "0.7rem 1rem",
+            cursor: "pointer",
+            fontWeight: "bold"
+          }}
+        >
+          Ver reseña
+        </button>
+      ) : (
+        <button
+          onClick={handleMarkAsWatched}
+          style={{
+            backgroundColor: "yellow",
+            border: "none",
+            padding: "0.7rem 1rem",
+            cursor: "pointer",
+            fontWeight: "bold"
+          }}
+        >
+          Marcar como visto
+        </button>
       )}
-
-      
-      {!hasSeen && (
-        <div>
-          <p style={{ color: "#ffcc00", fontSize: "1.2rem" }}>
-            ¿Ya viste esta película?
-          </p>
-          <button 
-            onClick={handleMarkAsSeen} 
-            className="mark-watched-button">
-            Marcar como vista
-          </button>
-        </div>
-      )}
-
-      
-      {hasSeen && (
-        <div className="rating-container">
-          <span className="rating-box">⭐ Calificación: {userRating ? `${userRating}/10` : "No calificada"}</span>
-        </div>
-      )}
-
-      
-      {hasSeen && (
-        <div className="rating-buttons">
-          {[...Array(10)].map((_, index) => (
-            <button 
-              key={index + 1} 
-              onClick={() => handleRatingChange(index + 1)}
-              className="rating-button">
-              {index + 1}
-            </button>
-          ))}
-        </div>
-      )}
-
-      
-      <button onClick={() => navigate("/recommendations")} className="back-button">
-        🔙 Volver a recomendaciones
-      </button>
     </div>
   );
 }
