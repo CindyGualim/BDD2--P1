@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import "./css/rec.css"; // ✅ Usamos el CSS existente
+import "./css/rec.css"; 
 
 const API_URL = "http://localhost:5000";
 
@@ -18,7 +18,7 @@ function MovieDetails() {
     axios.get(`${API_URL}/movie/${encodeURIComponent(titulo)}`)
       .then(response => {
         const data = response.data;
-        console.log("📌 Datos de la película recibidos:", data);
+        console.log("Datos de la película recibidos:", data);
 
         const fixedData = {
           ...data,
@@ -36,7 +36,7 @@ function MovieDetails() {
           setWatchedDate(`${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
         }
       })
-      .catch(error => console.error("❌ Error al obtener la película:", error));
+      .catch(error => console.error("Error al obtener la película:", error));
   }, [titulo]);
 
   const handleMarkAsSeen = () => {
@@ -50,7 +50,7 @@ function MovieDetails() {
       setWatchedDate(new Date().toISOString().split("T")[0]);
       setTimeout(() => navigate("/recommendations"), 1000); // Redirigir después de 1 segundo
     })
-    .catch(error => console.error("❌ Error al marcar la película como vista:", error));
+    .catch(error => console.error("Error al marcar la película como vista:", error));
   };
 
   const handleRatingChange = (newRating) => {
@@ -64,7 +64,7 @@ function MovieDetails() {
       console.log("✅ Calificación actualizada:", response.data);
       setTimeout(() => navigate("/recommendations"), 1000); // Redirigir después de 1 segundo
     })
-    .catch(error => console.error("❌ Error al actualizar la calificación:", error));
+    .catch(error => console.error("Error al actualizar la calificación:", error));
   };
 
   if (!movie) return <p>📌 Cargando información de la película...</p>;
@@ -85,7 +85,7 @@ function MovieDetails() {
         <p><strong>📅 Vista el:</strong> {watchedDate}</p>
       )}
 
-      {/* ✅ Sección para marcar como vista */}
+      
       {!hasSeen && (
         <div>
           <p style={{ color: "#ffcc00", fontSize: "1.2rem" }}>
@@ -99,14 +99,14 @@ function MovieDetails() {
         </div>
       )}
 
-      {/* ✅ Sección para calificar */}
+      
       {hasSeen && (
         <div className="rating-container">
           <span className="rating-box">⭐ Calificación: {userRating ? `${userRating}/10` : "No calificada"}</span>
         </div>
       )}
 
-      {/* ✅ Mostrar botones de calificación si la película ya fue vista */}
+      
       {hasSeen && (
         <div className="rating-buttons">
           {[...Array(10)].map((_, index) => (
@@ -120,7 +120,7 @@ function MovieDetails() {
         </div>
       )}
 
-      {/* ✅ Botón de regreso que redirige a Recommendations */}
+      
       <button onClick={() => navigate("/recommendations")} className="back-button">
         🔙 Volver a recomendaciones
       </button>

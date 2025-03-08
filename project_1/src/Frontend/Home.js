@@ -27,10 +27,10 @@ function Home() {
     // Obtener el top global de películas más populares
     axios.get("http://localhost:5000/top-movies")
       .then(response => {
-        console.log("🏆 Top películas recibidas:", response.data);
+        console.log("Top películas recibidas:", response.data);
         setTopMovies(response.data);
       })
-      .catch(error => console.error("❌ Error al obtener top de películas:", error))
+      .catch(error => console.error("Error al obtener top de películas:", error))
       .finally(() => setLoading(false));
 
   }, [userEmail, navigate]);

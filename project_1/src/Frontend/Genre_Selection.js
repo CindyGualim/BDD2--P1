@@ -12,7 +12,7 @@ function GenreSelection() {
   useEffect(() => {
     axios.get("http://localhost:5000/genres")
       .then(response => setGenres(response.data))
-      .catch(error => console.error("❌ Error al obtener géneros:", error));
+      .catch(error => console.error("Error al obtener géneros:", error));
   }, []);
 
   const handleGenreToggle = (genre) => {
@@ -37,7 +37,7 @@ function GenreSelection() {
 
       navigate("/recommendations");
     } catch (error) {
-      console.error("❌ Error al guardar preferencias:", error);
+      console.error("Error al guardar preferencias:", error);
     }
   };
 
