@@ -472,53 +472,69 @@ app.get("/recommendations/:email", async (req, res) => {
 // o en req.body.email. Adáptalo a tu caso.
 app.get("/movie/:titulo", async (req, res) => {
   const { titulo } = req.params;
-  const userEmail = req.query.email || req.body.email; 
+  const userEmail = req.query.email || req.body.email;
   const normalizedTitulo = titulo.trim();
 
   const session = driver.session();
   try {
     const query = `
-      MATCH (p:Película)
-      WHERE p.titulo = $normalizedTitulo
-      // Verificamos si hay relación (u)-[:VIO]->(p)
+      MATCH (p:Película {titulo: $normalizedTitulo})
       OPTIONAL MATCH (u:Usuario {email: $userEmail})-[vio:VIO]->(p)
       OPTIONAL MATCH (p)-[:PERTENECE_A]->(g:Genero)
-      OPTIONAL MATCH (p)-[:TRABAJA_CON]->(d:Director)
-      OPTIONAL MATCH (p)-[:TIENE_ACTOR]->(a:Actor)
-      OPTIONAL MATCH (otherU:Usuario)-[r:CALIFICA]->(p)
+      OPTIONAL MATCH (p)-[:DIRIGIDA_POR]->(d:Director)
+      OPTIONAL MATCH (p)-[:ACTUO_EN]-(a:Actor)
       RETURN
          p.titulo AS titulo,
          p.popularidad AS popularidad,
          p.sinopsis AS sinopsis,
-         COLLECT(DISTINCT g.nombre) AS generos,
-         d.nombre AS director,
+         p.fechaLanzamiento AS fechaLanzamiento,
+         p.publicoObjetivo AS publicoObjetivo,
+         p.formato AS formato,
+         COLLECT(DISTINCT g.nombre) AS generosAsociados,
+         COLLECT(DISTINCT d.nombre) AS director,
          COLLECT(DISTINCT a.nombre) AS actores,
-         // Devolvemos "Visto" si la relación vio existe
          CASE WHEN vio IS NOT NULL THEN "Visto" ELSE "No visto" END AS estado
     `;
+
     const result = await session.run(query, { normalizedTitulo, userEmail });
+
     if (result.records.length === 0) {
       return res.status(404).json({ error: "Película no encontrada" });
     }
 
     const record = result.records[0];
-    res.json({
+    let fechaLanzamiento = record.get("fechaLanzamiento");
+
+    if (fechaLanzamiento) {
+      try {
+        fechaLanzamiento = new Date(fechaLanzamiento).toISOString().split("T")[0];
+      } catch (e) {
+        fechaLanzamiento = "Fecha desconocida";
+      }
+    } else {
+      fechaLanzamiento = "Fecha desconocida";
+    }
+
+    const response = {
       titulo: record.get("titulo"),
       popularidad: record.get("popularidad") || 0,
       sinopsis: record.get("sinopsis") || "Sinopsis no disponible",
-      generos: record.get("generos")?.length ? record.get("generos") : ["No especificados"],
-      director: record.get("director") || "Desconocido",
-      actores: record.get("actores")?.length ? record.get("actores") : ["Sin información"],
-      estado: record.get("estado"), // "Visto" o "No visto"
-    });
+      fechaLanzamiento: fechaLanzamiento,
+      publicoObjetivo: record.get("publicoObjetivo") || "Desconocido",
+      formato: record.get("formato") || "No definido",
+      generosAsociados: record.get("generosAsociados").length ? record.get("generosAsociados") : ["No especificados"],
+      director: record.get("director").length ? record.get("director")[0] : "Desconocido",
+      actores: record.get("actores").length ? record.get("actores") : ["Sin información"],
+      estado: record.get("estado"),
+    };
+
+    res.json(response);
   } catch (error) {
-    console.error("Error en GET /movie/:titulo:", error);
     res.status(500).json({ error: error.message });
   } finally {
     await session.close();
   }
 });
-
 
 //   Ruta para marcar una película como vista
 app.post("/mark-as-watched", async (req, res) => {
