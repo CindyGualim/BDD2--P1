@@ -13,7 +13,10 @@ function MovieDetails() {
   useEffect(() => {
     const fetchMovie = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/movie/${encodeURIComponent(titulo)}`);
+        // Enviamos el email como query param para que el backend sepa quién es el usuario
+        const response = await axios.get(
+          `http://localhost:5000/movie/${encodeURIComponent(titulo)}?email=${encodeURIComponent(userEmail)}`
+        );
         setMovie(response.data);
       } catch (error) {
         console.error("Error al obtener datos de la película:", error);
@@ -22,7 +25,7 @@ function MovieDetails() {
       }
     };
     fetchMovie();
-  }, [titulo]);
+  }, [titulo, userEmail]);
 
   const handleMarkAsWatched = async () => {
     try {
@@ -36,9 +39,9 @@ function MovieDetails() {
     }
   };
 
-  // AHORA navega a /review/:titulo en lugar de sólo mostrar un alert:
+  // Ahora pasamos también el email como query param para la pantalla de reseñas
   const handleGoToReview = () => {
-    navigate(`/review/${encodeURIComponent(movie.titulo)}`);
+    navigate(`/review/${encodeURIComponent(movie.titulo)}?email=${encodeURIComponent(userEmail)}`);
   };
 
   if (loading) {
@@ -49,7 +52,7 @@ function MovieDetails() {
     return <div style={{ color: "#fff" }}>No se encontró la película.</div>;
   }
 
-  // Convertir fecha a un string legible...
+  // Manejo de fecha simple si tuvieras "fechaLanzamiento" real
   let fechaFormateada = "Sin fecha";
   if (movie.fechaLanzamiento) {
     try {
@@ -66,7 +69,10 @@ function MovieDetails() {
         {movie.titulo} ({fechaFormateada})
       </h1>
 
-      <p><strong>Géneros asociados:</strong> {movie.generosAsociados?.join(", ") || "No especificados"}</p>
+      <p>
+        <strong>Géneros asociados:</strong>{" "}
+        {movie.generosAsociados?.join(", ") || "No especificados"}
+      </p>
       <p><strong>Actores:</strong> {movie.actores?.join(", ") || "Sin información"}</p>
       <p><strong>Director:</strong> {movie.director || "Desconocido"}</p>
       <p><strong>Estado:</strong> {movie.estado || "No visto"}</p>
@@ -74,14 +80,14 @@ function MovieDetails() {
       <p><strong>Formato:</strong> {movie.formato || "No definido"}</p>
 
       {movie.estado === "Visto" ? (
-        <button 
-          onClick={handleGoToReview} 
+        <button
+          onClick={handleGoToReview}
           style={{
             backgroundColor: "yellow",
             border: "none",
             padding: "0.7rem 1rem",
             cursor: "pointer",
-            fontWeight: "bold"
+            fontWeight: "bold",
           }}
         >
           Ver reseña
@@ -94,7 +100,7 @@ function MovieDetails() {
             border: "none",
             padding: "0.7rem 1rem",
             cursor: "pointer",
-            fontWeight: "bold"
+            fontWeight: "bold",
           }}
         >
           Marcar como visto

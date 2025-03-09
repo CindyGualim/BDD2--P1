@@ -1,32 +1,33 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import "./css/MovieReviewView.css";  // (Opcional) Para colocar estilos
 
 function MovieReviewView() {
-  const { titulo } = useParams();              // Toma el título desde la URL ("/review/:titulo")
-  const [reviews, setReviews] = useState([]);  // Lista de reseñas existentes
+  const { titulo } = useParams();
+  const navigate = useNavigate();
+
+  // Leemos email del localStorage (o podríamos tomarlo de la query)
+  const userEmail = localStorage.getItem("userEmail");
+
+  const [reviews, setReviews] = useState([]);
   const [userHasRated, setUserHasRated] = useState(false);
 
   // Campos para nueva reseña
-  const [rating, setRating] = useState(0);       // número de estrellas (1-5)
+  const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [spoiler, setSpoiler] = useState(false);
 
-  const userEmail = localStorage.getItem("userEmail");
-  const navigate = useNavigate();
-
-  // Cargar reseñas de la película al montar o cambiar de título
+  // Cargar reseñas de la película
   useEffect(() => {
     fetchReviews();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [titulo]);
 
-  // Obtener reseñas desde el backend
   const fetchReviews = async () => {
     try {
       const res = await axios.get(`http://localhost:5000/movie-reviews/${encodeURIComponent(titulo)}`, {
-        params: { email: userEmail },  // Indica al backend el usuario actual
+        params: { email: userEmail },  // Indicamos al backend quién soy
       });
       setReviews(res.data.reviews || []);
       setUserHasRated(res.data.userHasRated || false);
@@ -35,15 +36,13 @@ function MovieReviewView() {
     }
   };
 
-  // Asignar valor de estrellas al hacer clic
+  // Asignar valor de estrellas
   const handleStarClick = (starIndex) => {
-    // Si hace clic en la estrella #3, rating = 3
     setRating(starIndex);
   };
 
-  // Enviar nueva reseña al backend
+  // Enviar nueva reseña
   const handleCreateReview = async () => {
-    // Validar que esté en el rango
     if (rating < 1 || rating > 5) {
       alert("Selecciona una puntuación entre 1 y 5 estrellas.");
       return;
@@ -54,10 +53,10 @@ function MovieReviewView() {
         title: titulo,
         puntuacion: rating,
         comentario: comment,
-        spoiler
+        spoiler,
       });
 
-      // Mostrar un mensaje con los datos
+      // Mostramos un alert
       alert(`
 Reseña guardada con éxito.
 
@@ -74,10 +73,9 @@ Spoiler?: ${spoiler ? "Sí" : "No"}
     }
   };
 
-  // Dar 'like' a una reseña existente (si tienes un endpoint /movie-reviews/:reviewId/like)
+  // Dar Like
   const handleLike = async (index) => {
     const review = reviews[index];
-    // Suponiendo que tu backend devuelva un 'reviewId' para cada reseña
     if (!review.reviewId) {
       alert("Esta reseña no tiene un ID asignado para poder dar like.");
       return;
@@ -85,7 +83,6 @@ Spoiler?: ${spoiler ? "Sí" : "No"}
     try {
       const res = await axios.post(`http://localhost:5000/movie-reviews/${review.reviewId}/like`);
       const newLikes = res.data.newLikes;
-      // Actualizamos localmente la cantidad de likes
       const updatedReviews = [...reviews];
       updatedReviews[index].likes = newLikes;
       setReviews(updatedReviews);
@@ -98,12 +95,11 @@ Spoiler?: ${spoiler ? "Sí" : "No"}
     <div className="review-container">
       <h1>Reseñas de <span className="movie-title">{titulo}</span></h1>
 
-      {/* Formulario de reseña solo si el usuario no ha calificado */}
+      {/* Si el usuario YA calificó, no mostramos el formulario. */}
       {!userHasRated && (
         <div className="review-form">
           <h2>¿Deseas calificar esta película?</h2>
 
-          {/* Sección de estrellas */}
           <div className="stars">
             {[1, 2, 3, 4, 5].map((star) => (
               <span
@@ -146,7 +142,6 @@ Spoiler?: ${spoiler ? "Sí" : "No"}
       ) : (
         reviews.map((r, idx) => (
           <div className="review-card" key={idx}>
-            {/* Estrellas llenas/vacías según puntuación */}
             <div className="stars-display">
               {"★".repeat(r.puntuacion) + "☆".repeat(5 - r.puntuacion)}
             </div>
@@ -154,7 +149,13 @@ Spoiler?: ${spoiler ? "Sí" : "No"}
             <p>Comentario: {r.comentario}</p>
             <p>Likes: {r.likes}</p>
             <p>Spoiler: {r.spoiler ? "Sí" : "No"}</p>
-            <p>Autor: {r.authorName} ({r.reviewAuthor})</p>
+            
+            {/* Si la reseña es del usuario actual, lo indicamos */}
+            {r.reviewAuthor === userEmail ? (
+              <p>Autor: Tú (esta es tu reseña)</p>
+            ) : (
+              <p>Autor: {r.authorName} ({r.reviewAuthor})</p>
+            )}
 
             <button className="btn-like" onClick={() => handleLike(idx)}>
               Dar Like

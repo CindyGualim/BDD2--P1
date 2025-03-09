@@ -40,7 +40,7 @@ function Recommendations() {
   }, [userEmail]);
 
   const handleMovieClick = (title) => {
-    navigate(`/movie/${encodeURIComponent(title)}`);
+    navigate(`/movie/${encodeURIComponent(title)}?email=${userEmail}`);
   };
 
   const handleSaveRating = async (title) => {

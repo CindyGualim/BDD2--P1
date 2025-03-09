@@ -468,69 +468,56 @@ app.get("/recommendations/:email", async (req, res) => {
 });
 
 // GET: Obtener detalles de una película por su título
+// Nota: estamos asumiendo que recibes el email de tu usuario en req.query.email
+// o en req.body.email. Adáptalo a tu caso.
 app.get("/movie/:titulo", async (req, res) => {
-  let { titulo } = req.params;
-  console.log(`  Buscando información de la película: '${titulo}'`);
-
+  const { titulo } = req.params;
+  const userEmail = req.query.email || req.body.email; 
   const normalizedTitulo = titulo.trim();
-  console.log(`Título normalizado recibido en el backend: '${normalizedTitulo}'`);
 
   const session = driver.session();
   try {
     const query = `
       MATCH (p:Película)
       WHERE p.titulo = $normalizedTitulo
+      // Verificamos si hay relación (u)-[:VIO]->(p)
+      OPTIONAL MATCH (u:Usuario {email: $userEmail})-[vio:VIO]->(p)
       OPTIONAL MATCH (p)-[:PERTENECE_A]->(g:Genero)
       OPTIONAL MATCH (p)-[:TRABAJA_CON]->(d:Director)
       OPTIONAL MATCH (p)-[:TIENE_ACTOR]->(a:Actor)
-      OPTIONAL MATCH (u:Usuario)-[r:CALIFICA]->(p)
-      RETURN p.titulo AS titulo, 
-             p.anio AS anio, 
-             p.calificacion AS calificacion, 
-             p.popularidad AS popularidad, 
-             p.sinopsis AS sinopsis,
-             COLLECT(g.nombre) AS generos, 
-             d.nombre AS director,
-             COLLECT(a.nombre) AS actores,
-             r.puntuacion AS usuario_calificacion, 
-             p.estadoParaUsuario AS estado
+      OPTIONAL MATCH (otherU:Usuario)-[r:CALIFICA]->(p)
+      RETURN
+         p.titulo AS titulo,
+         p.popularidad AS popularidad,
+         p.sinopsis AS sinopsis,
+         COLLECT(DISTINCT g.nombre) AS generos,
+         d.nombre AS director,
+         COLLECT(DISTINCT a.nombre) AS actores,
+         // Devolvemos "Visto" si la relación vio existe
+         CASE WHEN vio IS NOT NULL THEN "Visto" ELSE "No visto" END AS estado
     `;
-
-    console.log(`Ejecutando consulta con título: '${normalizedTitulo}'`);
-
-    const result = await session.run(query, { normalizedTitulo });
-
+    const result = await session.run(query, { normalizedTitulo, userEmail });
     if (result.records.length === 0) {
-      console.error("  Película no encontrada en Neo4j:", titulo);
       return res.status(404).json({ error: "Película no encontrada" });
     }
 
-    console.log(`   Película encontrada en Neo4j: '${titulo}'`);
-
-    const movie = result.records[0];
-
+    const record = result.records[0];
     res.json({
-      titulo: movie.get("titulo"),
-      anio: movie.get("anio") ? movie.get("anio").low : "Desconocido",
-      calificacion: movie.get("calificacion") || "Sin calificación",
-      popularidad: movie.get("popularidad") || 0,
-      generos: movie.get("generos"),
-      director: movie.get("director") || "Desconocido",
-      actores: movie.get("actores") || [],
-      sinopsis: movie.get("sinopsis") || "Sinopsis no disponible",
-      usuario_calificacion: movie.get("usuario_calificacion"),
-      estado: movie.get("estado") || "No visto"
+      titulo: record.get("titulo"),
+      popularidad: record.get("popularidad") || 0,
+      sinopsis: record.get("sinopsis") || "Sinopsis no disponible",
+      generos: record.get("generos")?.length ? record.get("generos") : ["No especificados"],
+      director: record.get("director") || "Desconocido",
+      actores: record.get("actores")?.length ? record.get("actores") : ["Sin información"],
+      estado: record.get("estado"), // "Visto" o "No visto"
     });
-
   } catch (error) {
-    console.error("  Error en /movie/:titulo:", error);
+    console.error("Error en GET /movie/:titulo:", error);
     res.status(500).json({ error: error.message });
   } finally {
     await session.close();
   }
 });
-
-
 
 
 //   Ruta para marcar una película como vista
@@ -778,7 +765,6 @@ app.post("/update-last-seen", async (req, res) => {
 //   Devuelve todas las reseñas de la película y si el usuario actual ya calificó.
 app.get("/movie-reviews/:title", async (req, res) => {
   const { title } = req.params;
-  // El email del usuario actual (puede venir en query o en headers)
   const userEmail = req.query.email;  
   const session = driver.session();
 
@@ -794,7 +780,6 @@ app.get("/movie-reviews/:title", async (req, res) => {
          r.spoiler AS spoiler,
          author.email AS reviewAuthor,
          author.nombre AS authorName,
-         // Si existe la relación CALIFICA entre este usuario y la película, es que ya la vio/calificó
          CASE WHEN cal IS NULL THEN false ELSE true END AS userHasRated
     `;
 
@@ -804,7 +789,7 @@ app.get("/movie-reviews/:title", async (req, res) => {
 
     for (const record of result.records) {
       const puntuacion = record.get("puntuacion");
-      const fechaReseña = record.get("fechaReseña");
+      const fechaReseñaObj = record.get("fechaReseña");
       const comentario = record.get("comentario");
       const likes = record.get("likes");
       const spoiler = record.get("spoiler");
@@ -817,10 +802,16 @@ app.get("/movie-reviews/:title", async (req, res) => {
         userHasRated = true;
       }
 
+      // Convertir la fecha de objeto a string (YYYY-MM-DD)
+      let fechaReseña = "Fecha desconocida";
+      if (fechaReseñaObj && fechaReseñaObj.year) {
+        fechaReseña = `${fechaReseñaObj.year.low}-${String(fechaReseñaObj.month.low).padStart(2, "0")}-${String(fechaReseñaObj.day.low).padStart(2, "0")}`;
+      }
+
       // Guardamos cada reseña
       reviews.push({
         puntuacion: puntuacion?.low ?? puntuacion,
-        fechaReseña: fechaReseña || "Desconocida",
+        fechaReseña,
         comentario: comentario || "",
         likes: likes?.low ?? likes,
         spoiler: !!spoiler,
@@ -838,6 +829,7 @@ app.get("/movie-reviews/:title", async (req, res) => {
   }
 });
 
+
 // POST /movie-reviews 
 //   Crea una nueva reseña (nodo :Reseña) y las relaciones con Usuario y Película.
 //   También asigna la relación CALIFICA para guardar puntuación en la relación (opcional).
@@ -846,10 +838,17 @@ app.post("/movie-reviews", async (req, res) => {
   const session = driver.session();
 
   try {
-    // Por simplicidad, si el usuario no ha "visto" la película, asumimos que en este momento la "marca" como vista
-    // Creamos un nodo :Reseña con las propiedades que requieres
-    // RELACIÓN: (Usuario)-[:ESCRIBIO]->(Reseña)-[:SOBRE]->(Película)
-    // Además, MERGE (Usuario)-[:CALIFICA {puntuacion}]->(Película)
+    // Verificar si la película existe
+    const checkMovie = await session.run(
+      `OPTIONAL MATCH (p:Película {titulo: $title}) RETURN p`,
+      { title }
+    );
+
+    if (checkMovie.records.length === 0 || !checkMovie.records[0].get("p")) {
+      return res.status(404).json({ message: "Película no encontrada." });
+    }
+
+    // Crear la reseña con fecha actual
     const fechaReseña = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
     const initialLikes = 0;
 
@@ -881,12 +880,10 @@ app.post("/movie-reviews", async (req, res) => {
     );
 
     if (result.records.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "No se pudo crear la reseña; revisa los datos." });
+      return res.status(400).json({ message: "No se pudo guardar la reseña." });
     }
 
-    return res.json({ message: "Reseña creada/actualizada correctamente." });
+    return res.json({ message: "Reseña creada correctamente." });
   } catch (error) {
     console.error("Error en POST /movie-reviews:", error);
     return res.status(500).json({ error: error.message });
@@ -894,6 +891,7 @@ app.post("/movie-reviews", async (req, res) => {
     await session.close();
   }
 });
+
 
 
 //   Incrementa la propiedad 'likes' de la reseña indicada
