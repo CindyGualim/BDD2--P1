@@ -7,6 +7,7 @@ import Home from "./Home";
 import Director from "./Director";
 import MovieDetails from "./MovieDetails";
 import DirectorDetails from './DirectorDetails';
+import Actor from './Actors';
 // Importamos el nuevo componente:
 import MovieReviewView from "./MovieReviewView";
 
@@ -22,6 +23,7 @@ function AppRouter() {
         <Route path="/director" element={<Director />} />
         <Route path="/movie/:titulo" element={<MovieDetails />} />
         <Route path="/director/:name" element={<DirectorDetails />} />
+        <Route path="/actor" element={<Actor />} />
         {/* NUEVA RUTA para las reseñas */}
         <Route path="/review/:titulo" element={<MovieReviewView />} />
       </Routes>

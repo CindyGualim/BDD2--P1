@@ -350,21 +350,76 @@ app.get("/directors", async (req, res) => {
   }
 });
 
-
-
-//   GET: Obtener todos los actores
-app.get("/actors", async (req, res) => {
+app.get("/directors", async (req, res) => {
   const session = driver.session();
+
   try {
-    const result = await session.run("MATCH (a:Actor) RETURN a.nombre AS name");
-    const actors = result.records.map(record => record.get("name"));
-    res.json(actors);
+    console.log("📢 Buscando directores en la base de datos...");
+
+    const query = `
+      MATCH (d:Director)
+      RETURN 
+        d.nombre AS name, 
+        d.estilo AS estilo, 
+        COALESCE(d.premios, 0) AS premios
+    `;
+
+    const result = await session.run(query);
+
+    const directors = result.records.map(record => ({
+      name: record.get("name") || "Desconocido",
+      estilo: record.get("estilo") || "No especificado",
+      premios: record.get("premios") ? record.get("premios").toNumber() : 0,
+    }));
+
+    console.log("✅ Directores encontrados:", directors);
+    res.json(directors);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("❌ Error al obtener directores:", error);
+    res.status(500).json({ error: "Error al obtener directores" });
   } finally {
     await session.close();
   }
 });
+
+
+
+app.get("/actors", async (req, res) => {
+  const session = driver.session();
+  try {
+    console.log("📢 Buscando actores en la base de datos...");
+
+    const query = `
+      MATCH (a:Actor)
+      OPTIONAL MATCH (a)-[:ACTUO_EN]->(p:Película)
+      RETURN 
+        a.nombre AS name, 
+        a.fechaNacimiento AS fechaNacimiento, 
+        a.biografia AS biografia, 
+        COLLECT(p.titulo) AS filmografia, 
+        COALESCE(a.activo, false) AS activo
+    `;
+
+    const result = await session.run(query);
+
+    const actors = result.records.map(record => ({
+      name: record.get("name") || "Desconocido",
+      fechaNacimiento: record.get("fechaNacimiento") || "No disponible",
+      biografia: record.get("biografia") || "No disponible",
+      filmografia: record.get("filmografia").filter(title => title), // Evitar valores nulos
+      activo: record.get("activo"),
+    }));
+
+    console.log("✅ Actores encontrados:", actors);
+    res.json(actors);
+  } catch (error) {
+    console.error("❌ Error al obtener actores:", error);
+    res.status(500).json({ error: "Error al obtener actores" });
+  } finally {
+    await session.close();
+  }
+});
+
 
 //   GET: Obtener todas las películas
 app.get("/movies", async (req, res) => {
