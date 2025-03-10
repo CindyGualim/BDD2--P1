@@ -46,7 +46,6 @@ function Recommendations() {
   const handleSaveRating = async (title) => {
     if (selectedRating[title] === "" || isNaN(selectedRating[title])) return;
 
-    
     try {
       await axios.put("http://localhost:5000/movie/" + encodeURIComponent(title), {
         email: userEmail,
@@ -62,7 +61,7 @@ function Recommendations() {
     const ratingPromises = Object.keys(selectedRating).map((title) =>
       handleSaveRating(title)
     );
-  
+
     try {
       await Promise.all(ratingPromises);
       console.log("✅ Todas las calificaciones han sido guardadas correctamente.");
@@ -71,7 +70,6 @@ function Recommendations() {
       console.error("❌ Error al guardar algunas calificaciones:", error);
     }
   };
-  
 
   return (
     <div className="recommendations-container">
@@ -93,7 +91,8 @@ function Recommendations() {
         {global.map((movie, index) => (
           <div key={index} className="movie-card" onClick={() => handleMovieClick(movie.title)}>
             <h3>{movie.title}</h3>
-            <p>🌎 Popularidad: {movie.popularidad}</p>
+            <p>⭐ Promedio: {movie.promedioCalificacion}</p>
+            <p>📊 Total Calificaciones: {movie.totalCalificaciones}</p>
           </div>
         ))}
       </div>
@@ -113,6 +112,7 @@ function Recommendations() {
                   onChange={(e) => setSelectedRating({...selectedRating, [movie.title]: e.target.value})}
                   min="0" max="10"
                 />
+                <button onClick={() => handleSaveRating(movie.title)}>💾 Guardar</button>
               </p>
             </div>
           ))
@@ -121,6 +121,18 @@ function Recommendations() {
         )}
       </div>
 
+      <h2>🔁 Volver a ver</h2>
+      <div className="movies-grid">
+        {reWatchMovies.map((movie, index) => (
+          <div key={index} className="movie-card" onClick={() => handleMovieClick(movie.title)}>
+            <h3>{movie.title}</h3>
+            <p>⭐ Calificación: {movie.rating}</p>
+            <p>🎭 Géneros: {movie.genres?.join(", ") || "No disponibles"}</p>
+          </div>
+        ))}
+      </div>
+
+      <button className="save-button" onClick={handleSaveAndGoBack}>💾 Guardar todo y salir</button>
     </div>
   );
 }

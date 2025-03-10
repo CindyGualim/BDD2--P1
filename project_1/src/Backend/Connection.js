@@ -399,37 +399,39 @@ app.post("/save-preferences", async (req, res) => {
   }
 });
 
-// GET: Obtener el top global de películas más populares
+// GET: Obtener el top global de películas basado en calificaciones de usuarios
 app.get("/top-movies", async (req, res) => {
   const session = driver.session();
 
   try {
     const query = `
-      MATCH (p:Película)  
-      WHERE p.popularidad IS NOT NULL
-      RETURN p.titulo AS title, p.popularidad AS popularidad
-      ORDER BY p.popularidad DESC
+      MATCH (p:Película)<-[r:CALIFICA]-(u:Usuario)
+      RETURN 
+        p.titulo AS title, 
+        COUNT(r) AS totalCalificaciones,
+        AVG(r.puntuacion) AS promedioCalificacion
+      ORDER BY promedioCalificacion DESC, totalCalificaciones DESC
       LIMIT 10;
     `;
-
 
     const result = await session.run(query);
 
     const topMovies = result.records.map(record => ({
       title: record.get("title"),
-      popularidad: record.get("popularidad") ? record.get("popularidad").toNumber() : 0,
+      totalCalificaciones: record.get("totalCalificaciones").toNumber(),
+      promedioCalificacion: record.get("promedioCalificacion").toFixed(2),
     }));
 
-    console.log("🔹 Datos enviados al frontend (Top Global):", topMovies); // Agrega este log para verificar
-
+    console.log("🔹 Datos enviados al frontend (Top Global basado en calificaciones):", topMovies);
     res.json(topMovies);
   } catch (error) {
-    console.error("  Error en la consulta de top de películas:", error);
+    console.error("❌ Error en la consulta de top de películas por calificación:", error);
     res.status(500).json({ error: error.message });
   } finally {
     await session.close();
   }
 });
+
 
 
 // GET: Obtener recomendaciones de películas basadas en los géneros preferidos del usuario
