@@ -8,7 +8,6 @@ function Recommendations() {
   const [global, setGlobal] = useState([]);
   const [watchedMovies, setWatchedMovies] = useState([]);
   const [reWatchMovies, setReWatchMovies] = useState([]);
-  const [selectedRating, setSelectedRating] = useState({});
   const navigate = useNavigate();
   const userEmail = localStorage.getItem("userEmail");
 
@@ -24,14 +23,7 @@ function Recommendations() {
       .catch(error => console.error("❌ Error al obtener top global:", error));
 
     axios.get(`http://localhost:5000/watched-movies/${userEmail}`)
-      .then(response => {
-        setWatchedMovies(response.data);
-        const ratings = {};
-        response.data.forEach(movie => {
-          ratings[movie.title] = movie.rating !== null ? movie.rating : 0;
-        });
-        setSelectedRating(ratings);
-      })
+      .then(response => setWatchedMovies(response.data))
       .catch(error => console.error("❌ Error al obtener historial:", error));
 
     axios.get(`http://localhost:5000/re-watch-movies/${userEmail}`)
@@ -41,34 +33,6 @@ function Recommendations() {
 
   const handleMovieClick = (title) => {
     navigate(`/movie/${encodeURIComponent(title)}?email=${userEmail}`);
-  };
-
-  const handleSaveRating = async (title) => {
-    if (selectedRating[title] === "" || isNaN(selectedRating[title])) return;
-
-    try {
-      await axios.put("http://localhost:5000/movie/" + encodeURIComponent(title), {
-        email: userEmail,
-        calificacion: parseInt(selectedRating[title], 10)
-      });
-      console.log("✅ Calificación guardada para:", title);
-    } catch (error) {
-      console.error("❌ Error al guardar calificación:", error);
-    }
-  };
-
-  const handleSaveAndGoBack = async () => {
-    const ratingPromises = Object.keys(selectedRating).map((title) =>
-      handleSaveRating(title)
-    );
-
-    try {
-      await Promise.all(ratingPromises);
-      console.log("✅ Todas las calificaciones han sido guardadas correctamente.");
-      navigate("/login");
-    } catch (error) {
-      console.error("❌ Error al guardar algunas calificaciones:", error);
-    }
   };
 
   return (
@@ -101,19 +65,11 @@ function Recommendations() {
       <div className="movies-grid">
         {watchedMovies.length > 0 ? (
           watchedMovies.map((movie, index) => (
-            <div key={index} className="movie-card">
+            <div key={index} className="movie-card" onClick={() => handleMovieClick(movie.title)}>
               <h3>{movie.title}</h3>
               <p>📅 Vista el: {movie.watchedDate}</p>
               <p>🎭 Géneros: {movie.genres?.join(", ") || "No disponibles"}</p>
-              <p>⭐ Calificación: 
-                <input 
-                  type="number" 
-                  value={selectedRating[movie.title]}
-                  onChange={(e) => setSelectedRating({...selectedRating, [movie.title]: e.target.value})}
-                  min="0" max="10"
-                />
-                <button onClick={() => handleSaveRating(movie.title)}>💾 Guardar</button>
-              </p>
+              <p>⭐ Calificación: {movie.rating}/10</p>
             </div>
           ))
         ) : (
@@ -126,13 +82,11 @@ function Recommendations() {
         {reWatchMovies.map((movie, index) => (
           <div key={index} className="movie-card" onClick={() => handleMovieClick(movie.title)}>
             <h3>{movie.title}</h3>
-            <p>⭐ Calificación: {movie.rating}</p>
+            <p>⭐ Calificación: {movie.rating}/10</p>
             <p>🎭 Géneros: {movie.genres?.join(", ") || "No disponibles"}</p>
           </div>
         ))}
       </div>
-
-      <button className="save-button" onClick={handleSaveAndGoBack}>💾 Guardar todo y salir</button>
     </div>
   );
 }
