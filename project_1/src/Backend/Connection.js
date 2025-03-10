@@ -319,17 +319,24 @@ app.get("/genres", async (req, res) => {
   }
 });
 
-//   GET: Obtener todos los directores
-app.get("/directors", async (req, res) => {
-  const session = driver.session();
+app.get("/director/:name", async (req, res) => {
+  const { name } = req.params;
   try {
-    const result = await session.run("MATCH (d:Director) RETURN d.nombre AS name");
-    const directors = result.records.map(record => record.get("name"));
-    res.json(directors);
+    const query = `
+      MATCH (d:Director {name: $name})
+      RETURN d.name AS name, d.estilo AS estilo, d.premios AS premios, d.peliculas AS peliculas, d.biografia AS biografia
+    `;
+    const result = await session.run(query, { name });
+
+    if (result.records.length === 0) {
+      return res.status(404).json({ error: "Director no encontrado" });
+    }
+
+    const director = result.records[0].toObject();
+    res.json(director);
   } catch (error) {
+    console.error("Error al obtener los detalles del director:", error);
     res.status(500).json({ error: error.message });
-  } finally {
-    await session.close();
   }
 });
 
