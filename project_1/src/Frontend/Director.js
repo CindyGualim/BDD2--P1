@@ -1,50 +1,44 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import "./css/rec.css"; // Asegúrate de incluir estilos adecuados
+import "./css/rec.css"; // Asegúrate de que el archivo de estilos existe
 
 function Directors() {
   const [directors, setDirectors] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Obtener los directores desde el servidor
-    axios.get("http://localhost:5000/directors")
-      .then(response => {
-        // Log para verificar los datos que se reciben
+    const fetchDirectors = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/directors");
         console.log("Datos recibidos del servidor:", response.data);
 
-        const personalized = response.data;
+        if (Array.isArray(response.data)) {
+          const topDirectors = response.data
+            .map(director => ({
+              name: director.name || "Desconocido",
+              estilo: director.estilo || "No especificado",
+              premios: Number(director.premios) || 0, // Asegurar que es un número
+            }))
+            .sort((a, b) => b.premios - a.premios) // Ordenar de mayor a menor
+            .slice(0, 10);
 
-        // Procesamos los directores, ordenándolos por premios
-        const topDirectors = personalized
-          .map((director) => {
-            return {
-              name: director.name, // Nombre del director
-              estilo: director.estilo, // Estilo del director
-              premios: director.premios || "No especificados" // Premios del director
-            };
-          })
-          .sort((a, b) => {
-            // Ordenamos por la cantidad de premios (de mayor a menor)
-            const awardsA = parseInt(a.premios) || 0; // Si no tiene premios, es 0
-            const awardsB = parseInt(b.premios) || 0;
-            return awardsB - awardsA;
-          })
-          .slice(0, 10); // Tomamos solo los 10 directores con más premios
+          console.log("Top 10 directores:", topDirectors);
+          setDirectors(topDirectors);
+        } else {
+          console.error("❌ Datos de directores no válidos:", response.data);
+        }
+      } catch (error) {
+        console.error("❌ Error al obtener directores:", error);
+      }
+    };
 
-        // Log para verificar el resultado de los directores filtrados
-        console.log("Top 10 directores:", topDirectors);
-
-        // Establecemos los directores filtrados en el estado
-        setDirectors(topDirectors);
-      })
-      .catch(error => console.error("❌ Error al obtener directores:", error));
+    fetchDirectors();
   }, []);
 
-  // Función para manejar el clic en un director
+  // Manejar clic en director
   const handleDirectorClick = (name) => {
-    console.log("Director clickeado:", name); // Verifica si el nombre está bien
+    console.log("Director clickeado:", name);
     navigate(`/director/${encodeURIComponent(name)}`);
   };
 

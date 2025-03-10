@@ -319,26 +319,38 @@ app.get("/genres", async (req, res) => {
   }
 });
 
-app.get("/director/:name", async (req, res) => {
-  const { name } = req.params;
+app.get("/directors", async (req, res) => {
+  const session = driver.session();
+
   try {
+    console.log("📢 Buscando directores en la base de datos...");
+
     const query = `
-      MATCH (d:Director {name: $name})
-      RETURN d.name AS name, d.estilo AS estilo, d.premios AS premios, d.peliculas AS peliculas, d.biografia AS biografia
+      MATCH (d:Director)
+      RETURN d.nombre AS name, d.estilo AS estilo, COALESCE(d.premios, 0) AS premios
+      ORDER BY premios DESC
+      LIMIT 10;
     `;
-    const result = await session.run(query, { name });
 
-    if (result.records.length === 0) {
-      return res.status(404).json({ error: "Director no encontrado" });
-    }
+    const result = await session.run(query);
 
-    const director = result.records[0].toObject();
-    res.json(director);
+    const directors = result.records.map(record => ({
+      name: record.get("name") || "Desconocido",
+      estilo: record.get("estilo") || "No especificado",
+      premios: record.get("premios") ? record.get("premios").toNumber() : 0,
+    }));
+
+    console.log("✅ Directores encontrados:", directors);
+    res.json(directors);
   } catch (error) {
-    console.error("Error al obtener los detalles del director:", error);
-    res.status(500).json({ error: error.message });
+    console.error("❌ Error al obtener directores:", error);
+    res.status(500).json({ error: "Error al obtener directores" });
+  } finally {
+    await session.close();
   }
 });
+
+
 
 //   GET: Obtener todos los actores
 app.get("/actors", async (req, res) => {
