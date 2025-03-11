@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom"; 
 import axios from "axios";
 import "./css/rec.css";
+
 
 function Recommendations() {
   const [personalized, setPersonalized] = useState([]);
@@ -37,6 +38,13 @@ function Recommendations() {
 
   return (
     <div className="recommendations-container">
+      <div className="navigation-buttons">
+        <button onClick={() => navigate("/home")} className="nav-button">Home</button>
+        <button onClick={() => navigate("/director")} className="nav-button">Director</button>
+        <button onClick={() => navigate("/actor")} className="nav-button">Actor</button>
+        <button onClick={() => navigate("/follow-director")} className="nav-button">Follow Director</button>
+        <button onClick={() => navigate("/rate-movie")} className="nav-button">Rate Movie</button>
+      </div>
       <h1>🎬 Películas Recomendadas</h1>
 
       <h2>📌 Basado en tus gustos</h2>
