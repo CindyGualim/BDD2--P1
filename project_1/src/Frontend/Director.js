@@ -21,7 +21,7 @@ function Directors() {
           const topDirectors = response.data
             .map(director => ({
               name: director.name || "Desconocido",
-              estilo: director.estilo || "No especificado",
+              tematicaRecurrente: director.tematicaRecurrente || "No especificado",
               premios: isNaN(Number(director.premios)) ? 0 : Number(director.premios), // Corrección
             }))
             .sort((a, b) => b.premios - a.premios) // Ordenar de mayor a menor
@@ -67,7 +67,7 @@ function Directors() {
               <div key={index} className="movie-card" onClick={() => handleDirectorClick(director.name)}>
                 <h3>{director.name}</h3>
                 <p>🏆 Premios: {director.premios}</p>
-                <p>🎭 Estilo: {director.estilo}</p>
+                <p>🎭 Estilo: {director.tematicaRecurrente}</p>
               </div>
             ))
           ) : (

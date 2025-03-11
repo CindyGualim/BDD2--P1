@@ -319,69 +319,106 @@ app.get("/genres", async (req, res) => {
   }
 });
 
+
 app.get("/directors", async (req, res) => {
   const session = driver.session();
 
   try {
-    console.log("📢 Buscando directores en la base de datos...");
+    console.log("Buscando directores en la base de datos...");
 
     const query = `
       MATCH (d:Director)
-      RETURN d.nombre AS name, d.estilo AS estilo, COALESCE(d.premios, 0) AS premios
+      RETURN 
+        d.nombre AS name, 
+        d.tematicaRecurrente AS tematicaRecurrente, 
+        COALESCE(d.premios, 0) AS premios
       ORDER BY premios DESC
       LIMIT 10;
     `;
 
     const result = await session.run(query);
 
-    const directors = result.records.map(record => ({
-      name: record.get("name") || "Desconocido",
-      estilo: record.get("estilo") || "No especificado",
-      premios: record.get("premios") ? record.get("premios").toNumber() : 0,
-    }));
+    console.log("📢 Registros sin procesar:");
+    result.records.forEach(record => console.log(record.toObject()));
 
-    console.log("✅ Directores encontrados:", directors);
+    const directors = result.records.map(record => {
+      let premios = record.get("premios");
+      
+      if (premios instanceof neo4j.Integer) {
+        premios = premios.toNumber();
+      } else if (typeof premios !== "number") {
+        premios = 0;
+      }
+
+      return {
+        name: record.get("name") || "Desconocido",
+        tematicaRecurrente: record.get("tematicaRecurrente") || "No especificado",
+        premios: premios,
+      };
+    });
+
+    console.log("🎬 Directores procesados:", directors);
     res.json(directors);
+
   } catch (error) {
     console.error("❌ Error al obtener directores:", error);
-    res.status(500).json({ error: "Error al obtener directores" });
+    res.status(500).json({ error: "Error al obtener directores", details: error.message });
   } finally {
     await session.close();
   }
 });
 
-app.get("/directors", async (req, res) => {
+
+app.get("/directors/:director", async (req, res) => {
   const session = driver.session();
+  const directorName = decodeURIComponent(req.params.director); // Decodificar URL
 
   try {
-    console.log("📢 Buscando directores en la base de datos...");
+    console.log(`🔍 Buscando director: ${directorName}`);
 
     const query = `
-      MATCH (d:Director)
+      MATCH (d:Director {nombre: $name})
+      OPTIONAL MATCH (d)-[:DIRIGIO]->(p:Pelicula)
       RETURN 
         d.nombre AS name, 
-        d.estilo AS estilo, 
-        COALESCE(d.premios, 0) AS premios
+        d.tematicaRecurrente AS tematicaRecurrente, 
+        COALESCE(d.premios, 0) AS premios,
+        d.biografia AS biografia,
+        COLLECT(p.titulo) AS peliculas
+      LIMIT 1;
     `;
 
-    const result = await session.run(query);
+    const result = await session.run(query, { name: directorName });
 
-    const directors = result.records.map(record => ({
-      name: record.get("name") || "Desconocido",
-      estilo: record.get("estilo") || "No especificado",
-      premios: record.get("premios") ? record.get("premios").toNumber() : 0,
-    }));
+    if (result.records.length === 0) {
+      return res.status(404).json({ error: "Director no encontrado" });
+    }
 
-    console.log("✅ Directores encontrados:", directors);
-    res.json(directors);
+    const record = result.records[0].toObject();
+
+    // Convertir premios a número seguro
+    let premios = record.premios;
+    if (premios instanceof neo4j.Integer) {
+      premios = premios.toNumber();
+    }
+
+    const director = {
+      name: record.name || "Desconocido",
+      tematicaRecurrente: record.tematicaRecurrente || "No especificado",
+      premios: premios,
+      biografia: record.biografia || "No disponible",
+      peliculas: record.peliculas || [],
+    };
+
+    console.log("🎬 Director encontrado:", director);
+    res.json(director);
   } catch (error) {
-    console.error("❌ Error al obtener directores:", error);
-    res.status(500).json({ error: "Error al obtener directores" });
+    console.error("❌ Error al obtener el director:", error);
+    res.status(500).json({ error: "Error al obtener el director", details: error.message });
   } finally {
     await session.close();
   }
 });
-
 
 
 app.get("/actors", async (req, res) => {
