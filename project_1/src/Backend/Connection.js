@@ -350,6 +350,38 @@ app.get("/directors", async (req, res) => {
   }
 });
 
+app.get("/directors", async (req, res) => {
+  const session = driver.session();
+
+  try {
+    console.log("📢 Buscando directores en la base de datos...");
+
+    const query = `
+      MATCH (d:Director)
+      RETURN 
+        d.nombre AS name, 
+        d.estilo AS estilo, 
+        COALESCE(d.premios, 0) AS premios
+    `;
+
+    const result = await session.run(query);
+
+    const directors = result.records.map(record => ({
+      name: record.get("name") || "Desconocido",
+      estilo: record.get("estilo") || "No especificado",
+      premios: record.get("premios") ? record.get("premios").toNumber() : 0,
+    }));
+
+    console.log("✅ Directores encontrados:", directors);
+    res.json(directors);
+  } catch (error) {
+    console.error("❌ Error al obtener directores:", error);
+    res.status(500).json({ error: "Error al obtener directores" });
+  } finally {
+    await session.close();
+  }
+});
+
 
 
 app.get("/actors", async (req, res) => {
