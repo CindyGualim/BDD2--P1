@@ -435,6 +435,7 @@ app.get("/actors", async (req, res) => {
         a.biografia AS biografia, 
         COLLECT(p.titulo) AS filmografia, 
         COALESCE(a.activo, false) AS activo
+        LIMIT 10;
     `;
 
     const result = await session.run(query);

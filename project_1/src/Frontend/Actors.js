@@ -29,7 +29,13 @@ function Actors() {
           actors.map((actor, index) => (
             <div key={index} className="movie-card" onClick={() => handleActorClick(actor.name)}>
               <h3>{actor.name}</h3>
-              <p>📅 Nacimiento: {actor.fechaNacimiento || "Desconocido"}</p>
+              <p>
+                📅 Nacimiento: {actor.fechaNacimiento && typeof actor.fechaNacimiento === "object"
+                  ? `${actor.fechaNacimiento.day?.low}/${actor.fechaNacimiento.month?.low}/${actor.fechaNacimiento.year?.low}`
+                  : "Desconocido"}
+              </p>
+
+
               <p>🎬 Filmografía: {actor.filmografia?.join(", ") || "No disponible"}</p>
               <p>📖 Biografía: {actor.biografia || "No disponible"}</p>
               <p>✅ Activo: {actor.activo ? "Sí" : "No"}</p>
