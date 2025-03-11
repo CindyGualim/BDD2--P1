@@ -7,8 +7,10 @@ import Home from "./Home";
 import Director from "./Director";
 import MovieDetails from "./MovieDetails";
 import DirectorDetails from './DirectorDetails';
+import ActorDetails from './ActorDetails';
 import Actor from './Actors';
-// Importamos el nuevo componente:
+import FollowDirector from "./FollowDirector";
+import RateMovie from "./RateMovie";
 import MovieReviewView from "./MovieReviewView";
 
 function AppRouter() {
@@ -24,8 +26,10 @@ function AppRouter() {
         <Route path="/movie/:titulo" element={<MovieDetails />} />
         <Route path="/director/:name" element={<DirectorDetails />} />
         <Route path="/actor" element={<Actor />} />
-        {/* NUEVA RUTA para las reseñas */}
+        <Route path="/actor/:name" element={<ActorDetails />} />
         <Route path="/review/:titulo" element={<MovieReviewView />} />
+        <Route path="/follow-director" element={<FollowDirector />} />
+        <Route path="/rate-movie" element={<RateMovie />} />
       </Routes>
     </Router>
   );

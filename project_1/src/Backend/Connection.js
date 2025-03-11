@@ -458,6 +458,51 @@ app.get("/actors", async (req, res) => {
   }
 });
 
+app.get("/actors/:name", async (req, res) => {
+  const session = driver.session();
+  const actorName = decodeURIComponent(req.params.name); // Decodificar URL
+
+  try {
+    console.log(`🔍 Buscando actor: ${actorName}`);
+
+    const query = `
+      MATCH (a:Actor {nombre: $name})
+      OPTIONAL MATCH (a)-[:ACTUO_EN]->(p:Película)
+      RETURN 
+        a.nombre AS name, 
+        a.fechaNacimiento AS fechaNacimiento, 
+        a.biografia AS biografia, 
+        COLLECT(p.titulo) AS filmografia, 
+        COALESCE(a.activo, false) AS activo
+      LIMIT 1;
+    `;
+
+    const result = await session.run(query, { name: actorName });
+
+    if (result.records.length === 0) {
+      return res.status(404).json({ error: "Actor no encontrado" });
+    }
+
+    const record = result.records[0].toObject();
+
+    const actor = {
+      name: record.name || "Desconocido",
+      fechaNacimiento: record.fechaNacimiento || "No disponible",
+      biografia: record.biografia || "No disponible",
+      filmografia: record.filmografia.filter(title => title), // Evitar valores nulos
+      activo: record.activo,
+    };
+
+    console.log(" Actor encontrado:", actor);
+    res.json(actor);
+  } catch (error) {
+    console.error(" Error al obtener el actor:", error);
+    res.status(500).json({ error: "Error al obtener el actor", details: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
 
 //   GET: Obtener todas las películas
 app.get("/movies", async (req, res) => {
@@ -510,6 +555,28 @@ app.post("/save-preferences", async (req, res) => {
     await session.close();
   }
 });
+
+app.get("/user-genres/:email", async (req, res) => {
+  const { email } = req.params;
+  const session = driver.session();
+
+  try {
+    const result = await session.run(
+      `MATCH (u:Usuario {email: $email})-[:GUSTA]->(g:Genero)
+       RETURN g.nombre AS genre`,
+      { email }
+    );
+
+    const selectedGenres = result.records.map(record => record.get("genre"));
+    res.json(selectedGenres);
+  } catch (error) {
+    console.error("❌ Error en /user-genres:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
 
 // GET: Obtener el top global de películas basado en calificaciones de usuarios
 app.get("/top-movies", async (req, res) => {
@@ -1056,6 +1123,221 @@ app.post("/movie-reviews/:reviewId/like", async (req, res) => {
     await session.close();
   }
 });
+
+app.post("/follow-director", async (req, res) => {
+  const { email, directorName } = req.body;
+  const session = driver.session();
+
+  try {
+    // Verificar si el usuario y el director existen
+    const check = await session.run(
+      `MATCH (u:Usuario {email: $email}), (d:Director {nombre: $directorName}) RETURN u, d`,
+      { email, directorName }
+    );
+
+    if (check.records.length === 0) {
+      return res.status(404).json({ message: "Usuario o director no encontrado" });
+    }
+
+    // Crear relación si no existe
+    await session.run(
+      `MATCH (u:Usuario {email: $email}), (d:Director {nombre: $directorName})
+       MERGE (u)-[:SIGUE]->(d)`,
+      { email, directorName }
+    );
+
+    res.status(200).json({ message: "✅ Ahora sigues a este director" });
+  } catch (error) {
+    console.error("❌ Error en /follow-director:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+
+app.put("/rate-movie", async (req, res) => {
+  const { email, movieTitle, rating } = req.body;
+  const session = driver.session();
+
+  try {
+    // Verificar si la película existe
+    const check = await session.run(
+      `MATCH (p:Película {titulo: $movieTitle}) RETURN p`,
+      { movieTitle }
+    );
+
+    if (check.records.length === 0) {
+      return res.status(404).json({ message: "Película no encontrada" });
+    }
+
+    // Crear o actualizar relación de calificación
+    const result = await session.run(
+      `MATCH (u:Usuario {email: $email}), (p:Película {titulo: $movieTitle})
+       MERGE (u)-[r:CALIFICA]->(p)
+       SET r.puntuacion = $rating
+       RETURN r.puntuacion AS nuevaCalificacion`,
+      { email, movieTitle, rating: parseInt(rating, 10) }
+    );
+
+    res.json({ message: "✅ Calificación guardada correctamente", rating });
+  } catch (error) {
+    console.error("❌ Error en /rate-movie:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+
+app.get("/followed-directors/:email", async (req, res) => {
+  const { email } = req.params;
+  const session = driver.session();
+
+  try {
+    const result = await session.run(
+      `MATCH (u:Usuario {email: $email})-[:SIGUE]->(d:Director)
+       RETURN DISTINCT d.nombre AS name`,  // DISTINCT evita duplicados
+      { email }
+    );
+
+    const followedDirectors = result.records.map(record => ({
+      name: record.get("name")
+    }));
+
+    res.json(followedDirectors);
+  } catch (error) {
+    console.error("❌ Error en /followed-directors:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+
+app.get("/rated-movies/:email", async (req, res) => {
+  const { email } = req.params;
+  const session = driver.session();
+
+  try {
+    const result = await session.run(
+      `MATCH (u:Usuario {email: $email})-[r:CALIFICA]->(p:Película)
+       RETURN DISTINCT p.titulo AS title, r.puntuacion AS rating
+       ORDER BY p.titulo`,  // Asegura que cada película aparece solo una vez
+      { email }
+    );
+
+    const ratedMovies = result.records.map(record => ({
+      title: record.get("title"),
+      rating: record.get("rating").low || record.get("rating")
+    }));
+
+    res.json(ratedMovies);
+  } catch (error) {
+    console.error("❌ Error en /rated-movies:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+
+app.post("/follow-director", async (req, res) => {
+  const { email, directorName } = req.body;
+  const session = driver.session();
+
+  try {
+    await session.run(
+      `MATCH (u:Usuario {email: $email}), (d:Director {nombre: $directorName})
+       MERGE (u)-[:SIGUE]->(d)`,  // MERGE evita duplicados
+      { email, directorName }
+    );
+
+    res.status(200).json({ message: `✅ Ahora sigues a ${directorName}.` });
+  } catch (error) {
+    console.error("❌ Error en /follow-director:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+
+
+app.put("/rate-movie", async (req, res) => {
+  const { email, movieTitle, rating } = req.body;
+  const session = driver.session();
+
+  try {
+    await session.run(
+      `MATCH (u:Usuario {email: $email}), (p:Película {titulo: $movieTitle})
+       MERGE (u)-[r:CALIFICA]->(p)  // MERGE asegura que solo haya una calificación
+       SET r.puntuacion = $rating
+       RETURN r.puntuacion AS nuevaCalificacion`,
+      { email, movieTitle, rating: parseInt(rating, 10) }
+    );
+
+    res.json({ message: `✅ Calificación de ${movieTitle} actualizada a ${rating}/10.` });
+  } catch (error) {
+    console.error("❌ Error en /rate-movie:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+
+app.delete("/unfollow-director", async (req, res) => {
+  const { email, directorName } = req.body;
+  const session = driver.session();
+
+  try {
+    const result = await session.run(
+      `MATCH (u:Usuario {email: $email})-[r:SIGUE]->(d:Director {nombre: $directorName})
+       DELETE r
+       RETURN COUNT(r) AS deletedCount`,
+      { email, directorName }
+    );
+
+    if (result.records[0].get("deletedCount") === 0) {
+      return res.status(404).json({ message: "⚠️ No sigues a este director." });
+    }
+
+    res.status(200).json({ message: `✅ Dejaste de seguir a ${directorName}.` });
+  } catch (error) {
+    console.error("❌ Error en /unfollow-director:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
+
+app.delete("/remove-rating", async (req, res) => {
+  const { email, movieTitle } = req.body;
+  const session = driver.session();
+
+  try {
+    const result = await session.run(
+      `MATCH (u:Usuario {email: $email})-[r:CALIFICA]->(p:Película {titulo: $movieTitle})
+       DELETE r
+       RETURN COUNT(r) AS deletedCount`,
+      { email, movieTitle }
+    );
+
+    if (result.records[0].get("deletedCount") === 0) {
+      return res.status(404).json({ message: "⚠️ No has calificado esta película." });
+    }
+
+    res.status(200).json({ message: `✅ Calificación de ${movieTitle} eliminada.` });
+  } catch (error) {
+    console.error("❌ Error en /remove-rating:", error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    await session.close();
+  }
+});
+
 
 app.get("/", (req, res) => {
     res.send("Servidor funcionando correctamente  ");
